@@ -70,6 +70,16 @@ delta against the official lap-time difference, and ranks continuous time-loss
 regions. The rules and thresholds are documented in
 [`docs/lap-analysis-v1.md`](docs/lap-analysis-v1.md).
 
+Create a dependency-free SVG comparison against the fastest eligible lap:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.plot data/captures/example.f1cap \
+  --comparison-lap 6 --output data/analysis/lap-comparison.svg
+```
+
+The plot contains aligned speed, delta, throttle, brake, steering, and gear
+panels. Detected time-loss regions are shaded on the delta panel.
+
 Run the automated tests with:
 
 ```bash

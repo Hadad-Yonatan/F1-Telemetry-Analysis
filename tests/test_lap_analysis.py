@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from f1.packets import PacketSessionData, PacketSessionHistoryData
 
@@ -6,11 +8,13 @@ from f1_telemetry.decode import decode_session_data, decode_session_history
 from f1_telemetry.lap_analysis import (
     LapTrace,
     LapValidation,
+    PreparedSession,
     _resolve_trace,
     compare_laps,
     resample_lap,
 )
 from f1_telemetry.normalize import NormalizedSample
+from f1_telemetry.plot import write_comparison_svg
 
 
 def populate_header(header: object, packet_id: int) -> None:
@@ -151,6 +155,44 @@ class LapReconstructionTests(unittest.TestCase):
         self.assertAlmostEqual(result.official_delta_s, 0.5)
         self.assertAlmostEqual(result.calculated_final_delta_s, 0.5)
         self.assertAlmostEqual(result.final_delta_error_s, 0.0)
+
+    def test_writes_svg_with_all_trace_panels(self) -> None:
+        reference_trace = LapTrace(
+            lap_number=1,
+            official_lap_time_ms=2_000,
+            samples=(make_sample(1, 0, 0), make_sample(2, 99, 1_900)),
+            discarded_attempt_frames=0,
+        )
+        comparison_trace = LapTrace(
+            lap_number=2,
+            official_lap_time_ms=2_500,
+            samples=(make_sample(3, 0, 0), make_sample(4, 99, 2_400)),
+            discarded_attempt_frames=0,
+        )
+        session = PreparedSession(
+            session_uid=123,
+            track_length=100,
+            track_id=10,
+            sector2_distance=33,
+            sector3_distance=66,
+            validations=(),
+            laps=(reference_trace, comparison_trace),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "comparison.svg"
+            write_comparison_svg(
+                session,
+                resample_lap(reference_trace, 100),
+                resample_lap(comparison_trace, 100),
+                output,
+            )
+            svg = output.read_text(encoding="utf-8")
+
+        for label in ("Speed", "Delta", "Throttle", "Brake", "Steering", "Gear"):
+            self.assertIn(label, svg)
+        self.assertIn("Delta +0.500 s", svg)
+
 
 
 if __name__ == "__main__":
