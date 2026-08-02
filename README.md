@@ -42,6 +42,19 @@ To send the original payloads to another local UDP listener, add
 `--destination 127.0.0.1:20778`. Add `--realtime` to preserve the original
 timing, or omit it to replay as quickly as possible.
 
+## Normalize player telemetry
+
+Validate and join Lap Data with Car Telemetry using session and frame identity:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.normalize data/captures/example.f1cap
+```
+
+Add `--output data/normalized/example.csv` to create a CSV. The columns and
+their units are defined in
+[`docs/normalized-sample-v1.md`](docs/normalized-sample-v1.md). Generated CSV
+and capture files under `data/` are ignored by Git.
+
 Run the automated tests with:
 
 ```bash
