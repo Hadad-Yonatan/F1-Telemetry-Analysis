@@ -1,0 +1,19 @@
+.DS_Store
+
+# Local Python environments and generated package files
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+build/
+dist/
+
+# Raw telemetry can be very large. Keep only hand-picked sample fixtures.
+data/*
+!data/samples/
+data/samples/*
+!data/samples/.gitkeep
+*.f1cap
+

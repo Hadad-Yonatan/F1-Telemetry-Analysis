@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "f1-telemetry-analysis"
+version = "0.1.0"
+description = "Capture and analyze F1 25 UDP telemetry."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "f1-packets==2025.1.1",
+]
+
+[project.scripts]
+f1-telemetry-probe = "f1_telemetry.probe:main"
+f1-telemetry-capture = "f1_telemetry.capture:main"
+f1-telemetry-replay = "f1_telemetry.replay:main"
+f1-telemetry-normalize = "f1_telemetry.normalize:main"
+f1-telemetry-analyze = "f1_telemetry.lap_analysis:main"
+f1-telemetry-plot = "f1_telemetry.plot:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
