@@ -239,8 +239,10 @@ class LapReconstructionTests(unittest.TestCase):
             output = Path(temp_dir) / "comparison.svg"
             write_comparison_svg(
                 session,
-                resample_lap(reference_trace, 100),
-                resample_lap(comparison_trace, 100),
+                compare_laps(
+                    resample_lap(reference_trace, 100),
+                    resample_lap(comparison_trace, 100),
+                ),
                 output,
             )
             svg = output.read_text(encoding="utf-8")
