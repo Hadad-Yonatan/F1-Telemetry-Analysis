@@ -19,6 +19,14 @@ from f1_telemetry.decode import (
     decode_session_data,
     decode_session_history,
 )
+from f1_telemetry.driving_events import (
+    DrivingEvent,
+    MatchedDrivingEvent,
+    detect_driving_events,
+    match_driving_events,
+    matched_event_for_region,
+    unmatched_events_for_region,
+)
 from f1_telemetry.normalize import (
     NormalizationResult,
     NormalizedSample,
@@ -104,7 +112,7 @@ class _SourcePoint:
 @dataclass(frozen=True)
 class AnalysisConfig:
     schema_version: int = 1
-    algorithm_version: str = "1.0.0"
+    algorithm_version: str = "1.1.0"
     distance_step_m: float = 1.0
     loss_bin_size_m: float = 25.0
     minimum_bin_loss_s: float = 0.003
@@ -112,6 +120,26 @@ class AnalysisConfig:
     minimum_speed_difference_kph: float = 2.0
     minimum_throttle_difference: float = 0.05
     minimum_brake_difference: float = 0.05
+    brake_on_threshold: float = 0.05
+    brake_on_sustain_m: float = 3.0
+    brake_off_threshold: float = 0.02
+    brake_off_sustain_m: float = 5.0
+    brake_gap_merge_m: float = 5.0
+    minimum_braking_event_length_m: float = 10.0
+    minimum_peak_brake: float = 0.20
+    minimum_speed_search_m: float = 250.0
+    full_throttle_threshold: float = 0.80
+    full_throttle_sustain_m: float = 10.0
+    coast_throttle_threshold: float = 0.05
+    coast_brake_threshold: float = 0.02
+    coast_minimum_speed_kph: float = 80.0
+    minimum_coast_length_m: float = 10.0
+    maximum_event_match_distance_m: float = 150.0
+    event_exit_extension_m: float = 100.0
+    minimum_braking_point_difference_m: float = 5.0
+    minimum_braking_distance_difference_m: float = 10.0
+    minimum_coast_difference_m: float = 10.0
+    minimum_throttle_reapplication_difference_m: float = 5.0
 
     def __post_init__(self) -> None:
         if self.schema_version < 1:
@@ -122,12 +150,36 @@ class AnalysisConfig:
             raise ValueError("distance step must be greater than zero")
         if self.loss_bin_size_m <= 0:
             raise ValueError("loss bin size must be greater than zero")
+        if not 0 <= self.brake_off_threshold <= self.brake_on_threshold <= 1:
+            raise ValueError("brake thresholds must satisfy 0 <= off <= on <= 1")
+        if not 0 <= self.minimum_peak_brake <= 1:
+            raise ValueError("minimum peak brake must be between zero and one")
+        if not 0 <= self.full_throttle_threshold <= 1:
+            raise ValueError("full-throttle threshold must be between zero and one")
+        if not 0 <= self.coast_throttle_threshold <= 1:
+            raise ValueError("coast throttle threshold must be between zero and one")
+        if not 0 <= self.coast_brake_threshold <= 1:
+            raise ValueError("coast brake threshold must be between zero and one")
         numeric_thresholds = (
             self.minimum_bin_loss_s,
             self.minimum_region_loss_s,
             self.minimum_speed_difference_kph,
             self.minimum_throttle_difference,
             self.minimum_brake_difference,
+            self.brake_on_sustain_m,
+            self.brake_off_sustain_m,
+            self.brake_gap_merge_m,
+            self.minimum_braking_event_length_m,
+            self.minimum_speed_search_m,
+            self.full_throttle_sustain_m,
+            self.coast_minimum_speed_kph,
+            self.minimum_coast_length_m,
+            self.maximum_event_match_distance_m,
+            self.event_exit_extension_m,
+            self.minimum_braking_point_difference_m,
+            self.minimum_braking_distance_difference_m,
+            self.minimum_coast_difference_m,
+            self.minimum_throttle_reapplication_difference_m,
         )
         if any(value < 0 for value in numeric_thresholds):
             raise ValueError("analysis thresholds cannot be negative")
@@ -159,6 +211,10 @@ class LossRegion:
     mean_throttle_difference: float
     mean_brake_difference: float
     evidence_labels: tuple[str, ...]
+    sector: int
+    matched_event_index: int | None
+    unmatched_reference_event_indices: tuple[int, ...]
+    unmatched_comparison_event_indices: tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -173,6 +229,11 @@ class LapComparison:
     reference_discarded_attempt_frames: int
     comparison_discarded_attempt_frames: int
     regions: tuple[LossRegion, ...]
+    reference_events: tuple[DrivingEvent, ...]
+    comparison_events: tuple[DrivingEvent, ...]
+    event_matches: tuple[MatchedDrivingEvent, ...]
+    unmatched_reference_event_indices: tuple[int, ...]
+    unmatched_comparison_event_indices: tuple[int, ...]
 
     @property
     def reference_lap(self) -> int:
@@ -468,6 +529,13 @@ def _loss_regions(
     delta: tuple[float, ...],
     *,
     config: AnalysisConfig,
+    event_matches: tuple[MatchedDrivingEvent, ...],
+    reference_events: tuple[DrivingEvent, ...],
+    comparison_events: tuple[DrivingEvent, ...],
+    unmatched_reference_event_indices: tuple[int, ...],
+    unmatched_comparison_event_indices: tuple[int, ...],
+    sector2_distance: float,
+    sector3_distance: float,
 ) -> tuple[LossRegion, ...]:
     step = reference.distance[1] - reference.distance[0]
     bin_samples = max(1, round(config.loss_bin_size_m / step))
@@ -508,6 +576,13 @@ def _loss_regions(
             evidence.append("higher average brake")
         if not evidence:
             evidence.append("mixed trace difference")
+        midpoint = (reference.distance[start] + reference.distance[end]) / 2
+        if midpoint < sector2_distance:
+            sector = 1
+        elif midpoint < sector3_distance:
+            sector = 2
+        else:
+            sector = 3
         regions.append(
             LossRegion(
                 start_distance=reference.distance[start],
@@ -523,6 +598,24 @@ def _loss_regions(
                 mean_throttle_difference=throttle_difference,
                 mean_brake_difference=brake_difference,
                 evidence_labels=tuple(evidence),
+                sector=sector,
+                matched_event_index=matched_event_for_region(
+                    reference.distance[start],
+                    reference.distance[end],
+                    event_matches,
+                ),
+                unmatched_reference_event_indices=unmatched_events_for_region(
+                    reference.distance[start],
+                    reference.distance[end],
+                    reference_events,
+                    unmatched_reference_event_indices,
+                ),
+                unmatched_comparison_event_indices=unmatched_events_for_region(
+                    reference.distance[start],
+                    reference.distance[end],
+                    comparison_events,
+                    unmatched_comparison_event_indices,
+                ),
             )
         )
     return tuple(sorted(regions, key=lambda region: region.time_loss_s, reverse=True))
@@ -536,6 +629,8 @@ def compare_laps(
     reference_discarded_attempt_frames: int = 0,
     comparison_discarded_attempt_frames: int = 0,
     config: AnalysisConfig = DEFAULT_ANALYSIS_CONFIG,
+    sector2_distance: float = float("inf"),
+    sector3_distance: float = float("inf"),
 ) -> LapComparison:
     if reference.distance != comparison.distance:
         raise ValueError("laps must use the same distance grid")
@@ -551,6 +646,13 @@ def compare_laps(
     official_delta = (
         comparison.official_lap_time_ms - reference.official_lap_time_ms
     ) / 1000
+    reference_events = detect_driving_events(reference, config)
+    comparison_events = detect_driving_events(comparison, config)
+    event_match_result = match_driving_events(
+        reference_events,
+        comparison_events,
+        config,
+    )
     return LapComparison(
         reference=reference,
         comparison=comparison,
@@ -561,7 +663,32 @@ def compare_laps(
         final_delta_error_s=delta[-1] - official_delta,
         reference_discarded_attempt_frames=reference_discarded_attempt_frames,
         comparison_discarded_attempt_frames=comparison_discarded_attempt_frames,
-        regions=_loss_regions(reference, comparison, delta, config=config),
+        regions=_loss_regions(
+            reference,
+            comparison,
+            delta,
+            config=config,
+            event_matches=event_match_result.matches,
+            reference_events=reference_events,
+            comparison_events=comparison_events,
+            unmatched_reference_event_indices=(
+                event_match_result.unmatched_reference_event_indices
+            ),
+            unmatched_comparison_event_indices=(
+                event_match_result.unmatched_comparison_event_indices
+            ),
+            sector2_distance=sector2_distance,
+            sector3_distance=sector3_distance,
+        ),
+        reference_events=reference_events,
+        comparison_events=comparison_events,
+        event_matches=event_match_result.matches,
+        unmatched_reference_event_indices=(
+            event_match_result.unmatched_reference_event_indices
+        ),
+        unmatched_comparison_event_indices=(
+            event_match_result.unmatched_comparison_event_indices
+        ),
     )
 
 
@@ -673,6 +800,8 @@ def analyze_capture(
                 comparison_trace.discarded_attempt_frames
             ),
             config=config,
+            sector2_distance=session.sector2_distance,
+            sector3_distance=session.sector3_distance,
         )
         if abs(comparison_result.final_delta_error_s) > 1e-9:
             raise ValueError(

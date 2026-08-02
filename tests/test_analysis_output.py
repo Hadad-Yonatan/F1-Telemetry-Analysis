@@ -210,10 +210,23 @@ class AnalysisSelectionTests(unittest.TestCase):
 
         document = json.loads((first / "analysis.json").read_text(encoding="utf-8"))
         self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(document["algorithm"]["version"], "1.1.0")
+        self.assertEqual(
+            document["algorithm"]["driving_event_parameters"][
+                "brake_on_threshold"
+            ],
+            0.05,
+        )
         self.assertEqual(document["capture"]["basename"], "session.f1cap")
         self.assertEqual(document["selected_reference_lap"], 3)
         self.assertEqual(len(document["lap_eligibility"]), 5)
         self.assertTrue(document["comparisons"][0]["finish_delta_verified"])
+        self.assertIn("driving_events", document["comparisons"][0])
+        self.assertIn("sector", document["comparisons"][0]["loss_regions"][0])
+        self.assertIn(
+            "unmatched_comparison_event_indices",
+            document["comparisons"][0]["loss_regions"][0],
+        )
         self.assertIn(
             "minimum_speed_difference_kph",
             document["comparisons"][0]["loss_regions"][0]["evidence"],
