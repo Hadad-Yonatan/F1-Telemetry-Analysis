@@ -53,13 +53,42 @@ throttle when it is more than 0.05 lower, and for higher average brake when it
 is more than 0.05 higher. A region that crosses none of those thresholds is
 labeled as a mixed trace difference.
 
+## Driving events
+
+Algorithm version 1.1 adds deterministic braking and corner-exit evidence.
+Braking starts after brake input remains at or above 0.05 for 3 metres and ends
+after it remains at or below 0.02 for 5 metres. Interruptions of at most 5
+metres are merged. Events shorter than 10 metres or with peak brake below 0.20
+are rejected.
+
+For every accepted event, minimum speed is searched from brake onset until the
+earlier of the next braking event or 250 metres after brake release. Throttle
+reapplication is the first 10 continuous metres at or above 0.80 after minimum
+speed. Coasting is measured between brake release and throttle reapplication
+where throttle is at most 0.05, brake at most 0.02, and speed at least 80 km/h;
+coast spans shorter than 10 metres are ignored.
+
+Reference and comparison events are paired by the nearest unmatched
+minimum-speed location within 150 metres. Loss regions use the paired event
+with the greatest window overlap, with the window extended 100 metres after
+throttle reapplication. A region can instead reference an unmatched event from
+one lap; the analyzer records this explicitly rather than pairing unrelated
+events.
+
+Event labels require at least 5 metres of braking-point difference, 10 metres
+of braking-distance difference, 10 metres of coasting difference, 5 metres of
+throttle-reapplication difference, or 2 km/h of minimum-speed difference.
+
 ## Stable output bundle
 
 With `--output-dir`, the analyzer creates a new directory containing:
 
 - `analysis.json`, with capture identity, algorithm parameters, session and
   eligibility metadata, selected laps, sector deltas, finish verification,
-  loss regions, and numeric evidence;
+  loss regions, driving events, matching state, and numeric evidence;
+- `report.md`, with lap eligibility, every ranked loss region, sector and
+  distance context, factual event observations, and relative links to traces
+  and plots;
 - one `lap-XX-vs-YY.csv` per comparison, containing the complete aligned time,
   delta, speed, throttle, brake, steering, and gear traces; and
 - one matching `lap-XX-vs-YY.svg` six-panel plot per comparison.

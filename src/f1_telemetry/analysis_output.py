@@ -18,8 +18,10 @@ from f1_telemetry.lap_analysis import (
     PreparedSession,
 )
 from f1_telemetry.plot import write_comparison_svg
+from f1_telemetry.report import comparison_stem, write_markdown_report
 
 SvgWriter = Callable[[PreparedSession, LapComparison, Path], None]
+ReportWriter = Callable[[AnalysisResult, Path], None]
 
 CSV_COLUMNS = (
     "distance_m",
@@ -338,10 +340,6 @@ def _write_json(result: AnalysisResult, output: Path) -> None:
         file.write("\n")
 
 
-def _comparison_stem(comparison: LapComparison) -> str:
-    return f"lap-{comparison.reference_lap:02d}-vs-{comparison.comparison_lap:02d}"
-
-
 def _write_comparison_csv(comparison: LapComparison, output: Path) -> None:
     reference = comparison.reference
     compared = comparison.comparison
@@ -374,6 +372,7 @@ def write_analysis_bundle(
     output_dir: str | Path,
     *,
     svg_writer: SvgWriter = write_comparison_svg,
+    report_writer: ReportWriter = write_markdown_report,
 ) -> None:
     """Atomically create a complete analysis bundle without overwriting."""
     output = Path(output_dir)
@@ -388,8 +387,9 @@ def write_analysis_bundle(
     )
     try:
         _write_json(result, temporary / "analysis.json")
+        report_writer(result, temporary / "report.md")
         for comparison in result.comparisons:
-            stem = _comparison_stem(comparison)
+            stem = comparison_stem(comparison)
             _write_comparison_csv(comparison, temporary / f"{stem}.csv")
             svg_writer(
                 result.session,

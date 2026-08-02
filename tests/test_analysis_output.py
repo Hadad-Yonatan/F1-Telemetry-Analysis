@@ -2,11 +2,17 @@ import csv
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from f1_telemetry.analysis_output import CSV_COLUMNS, write_analysis_bundle
 from f1_telemetry.capture_format import CaptureWriter
+from f1_telemetry.driving_events import (
+    DrivingEvent,
+    EventDifferences,
+    MatchedDrivingEvent,
+)
 from f1_telemetry.lap_analysis import (
     LapTrace,
     LapValidation,
@@ -15,6 +21,7 @@ from f1_telemetry.lap_analysis import (
     analyze_capture,
 )
 from f1_telemetry.normalize import NormalizedSample
+from f1_telemetry.report import render_markdown_report
 
 
 def make_sample(
@@ -198,6 +205,7 @@ class AnalysisSelectionTests(unittest.TestCase):
 
         expected_names = {
             "analysis.json",
+            "report.md",
             "lap-03-vs-01.csv",
             "lap-03-vs-01.svg",
             "lap-03-vs-05.csv",
@@ -246,8 +254,79 @@ class AnalysisSelectionTests(unittest.TestCase):
         svg = (first / "lap-03-vs-01.svg").read_text(encoding="utf-8")
         self.assertIn("Lap 3 vs lap 1", svg)
         self.assertIn("Delta +0.500 s", svg)
+        report = (first / "report.md").read_text(encoding="utf-8")
+        self.assertIn("# F1 Telemetry Driver Report", report)
+        self.assertIn("## Lap 1 versus lap 3", report)
+        self.assertIn("[aligned trace](lap-03-vs-01.csv)", report)
+        self.assertIn("No qualifying braking event overlaps this region", report)
+        self.assertEqual(
+            report.count("\n#### "),
+            sum(len(comparison.regions) for comparison in result.comparisons),
+        )
+        self.assertTrue((first / "report.md").read_bytes().endswith(b"\n"))
         with self.assertRaisesRegex(FileExistsError, "already exists"):
             write_analysis_bundle(result, first)
+
+    def test_report_uses_stored_event_values_with_missing_throttle(self) -> None:
+        result = self.analyze()
+        comparison = result.comparisons[0]
+        reference_event = DrivingEvent(
+            event_index=0,
+            braking_start_distance=10,
+            braking_end_distance=30,
+            braking_distance=20,
+            peak_brake=0.8,
+            minimum_speed_distance=40,
+            minimum_speed_kph=100,
+            throttle_reapplication_distance=None,
+            coast_distance=0,
+            analysis_end_distance=80,
+        )
+        compared_event = replace(
+            reference_event,
+            braking_start_distance=17,
+            braking_end_distance=37,
+            minimum_speed_kph=95,
+        )
+        differences = EventDifferences(
+            braking_start_distance=7,
+            braking_end_distance=7,
+            braking_distance=0,
+            peak_brake=0,
+            minimum_speed_distance=0,
+            minimum_speed_kph=-5,
+            throttle_reapplication_distance=None,
+            coast_distance=0,
+        )
+        match = MatchedDrivingEvent(
+            match_index=0,
+            reference=reference_event,
+            comparison=compared_event,
+            differences=differences,
+            evidence_labels=("braked later", "lower minimum speed"),
+        )
+        region = replace(
+            comparison.regions[0],
+            matched_event_index=0,
+        )
+        enriched_comparison = replace(
+            comparison,
+            regions=(region,) + comparison.regions[1:],
+            reference_events=(reference_event,),
+            comparison_events=(compared_event,),
+            event_matches=(match,),
+        )
+        enriched_result = replace(
+            result,
+            comparisons=(enriched_comparison,) + result.comparisons[1:],
+        )
+
+        report = render_markdown_report(enriched_result)
+
+        self.assertIn("Comparison braked 7.000 m later.", report)
+        self.assertIn("Comparison minimum speed was 5.000 km/h lower.", report)
+        self.assertIn("sustained full throttle not detected", report)
+        self.assertIn("coast distance 0.000 m", report)
 
     def test_output_failure_leaves_no_bundle_or_temporary_directory(self) -> None:
         result = self.analyze()
@@ -266,6 +345,24 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(
             list(Path(self.temporary.name).glob(".failed.tmp-*")),
+            [],
+        )
+
+        report_output = Path(self.temporary.name) / "failed-report"
+
+        def fail_report(_result: object, _output: Path) -> None:
+            raise RuntimeError("injected report failure")
+
+        with self.assertRaisesRegex(RuntimeError, "injected report failure"):
+            write_analysis_bundle(
+                result,
+                report_output,
+                report_writer=fail_report,
+            )
+
+        self.assertFalse(report_output.exists())
+        self.assertEqual(
+            list(Path(self.temporary.name).glob(".failed-report.tmp-*")),
             [],
         )
 

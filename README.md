@@ -79,9 +79,12 @@ PYTHONPATH=src python -m f1_telemetry.lap_analysis \
 
 The bundle contains canonical session and comparison metadata in
 `analysis.json`, a complete distance-aligned CSV trace for each comparison,
-and a matching six-panel SVG. Existing output directories are never
-overwritten. Use `--reference-lap` to replace the default fastest eligible
-reference and repeat `--comparison-lap` to select specific eligible laps.
+a matching six-panel SVG, and a deterministic `report.md` covering every loss
+region. The report includes sector and distance context, aggregate trace
+evidence, matched driving-event measurements, and explicit unmatched events.
+Existing output directories are never overwritten. Use `--reference-lap` to
+replace the default fastest eligible reference and repeat `--comparison-lap`
+to select specific eligible laps.
 
 Create a dependency-free SVG comparison against the fastest eligible lap:
 
