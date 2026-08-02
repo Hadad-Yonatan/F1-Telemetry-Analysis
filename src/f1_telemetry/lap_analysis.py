@@ -67,6 +67,17 @@ class ResampledLap:
 
 
 @dataclass(frozen=True)
+class _SourcePoint:
+    distance: float
+    elapsed_time: float
+    speed: float
+    throttle: float
+    brake: float
+    steering: float
+    gear: int
+
+
+@dataclass(frozen=True)
 class LossRegion:
     start_distance: float
     end_distance: float
@@ -252,39 +263,39 @@ def resample_lap(
     """Linearly interpolate a lap onto a common distance grid."""
     first = lap.samples[0]
     source = [
-        (
-            0.0,
-            0.0,
-            first.speed_kph,
-            first.throttle,
-            first.brake,
-            first.steering,
-            first.gear,
+        _SourcePoint(
+            distance=0.0,
+            elapsed_time=0.0,
+            speed=first.speed_kph,
+            throttle=first.throttle,
+            brake=first.brake,
+            steering=first.steering,
+            gear=first.gear,
         )
     ]
     source.extend(
-        (
-            sample.lap_distance,
-            sample.current_lap_time_ms / 1000,
-            sample.speed_kph,
-            sample.throttle,
-            sample.brake,
-            sample.steering,
-            sample.gear,
+        _SourcePoint(
+            distance=sample.lap_distance,
+            elapsed_time=sample.current_lap_time_ms / 1000,
+            speed=sample.speed_kph,
+            throttle=sample.throttle,
+            brake=sample.brake,
+            steering=sample.steering,
+            gear=sample.gear,
         )
         for sample in lap.samples
         if 0 < sample.lap_distance < track_length
     )
     last = source[-1]
     source.append(
-        (
-            float(track_length),
-            lap.official_lap_time_ms / 1000,
-            last[2],
-            last[3],
-            last[4],
-            last[5],
-            last[6],
+        _SourcePoint(
+            distance=float(track_length),
+            elapsed_time=lap.official_lap_time_ms / 1000,
+            speed=last.speed,
+            throttle=last.throttle,
+            brake=last.brake,
+            steering=last.steering,
+            gear=last.gear,
         )
     )
 
@@ -297,23 +308,28 @@ def resample_lap(
     gear = []
     right = 1
     for distance in distances:
-        while right < len(source) - 1 and source[right][0] < distance:
+        while right < len(source) - 1 and source[right].distance < distance:
             right += 1
         left = right - 1
-        x0, x1 = source[left][0], source[right][0]
+        x0, x1 = source[left].distance, source[right].distance
         ratio = 0.0 if x1 == x0 else (distance - x0) / (x1 - x0)
 
-        def interpolate(column: int) -> float:
-            return source[left][column] + ratio * (
-                source[right][column] - source[left][column]
-            )
-
-        elapsed.append(interpolate(1))
-        speed.append(interpolate(2))
-        throttle.append(interpolate(3))
-        brake.append(interpolate(4))
-        steering.append(interpolate(5))
-        gear.append(int(source[left if ratio < 0.5 else right][6]))
+        left_point = source[left]
+        right_point = source[right]
+        elapsed.append(
+            left_point.elapsed_time
+            + ratio * (right_point.elapsed_time - left_point.elapsed_time)
+        )
+        speed.append(left_point.speed + ratio * (right_point.speed - left_point.speed))
+        throttle.append(
+            left_point.throttle + ratio * (right_point.throttle - left_point.throttle)
+        )
+        brake.append(left_point.brake + ratio * (right_point.brake - left_point.brake))
+        steering.append(
+            left_point.steering + ratio * (right_point.steering - left_point.steering)
+        )
+        nearest = left_point if ratio < 0.5 else right_point
+        gear.append(nearest.gear)
 
     return ResampledLap(
         lap_number=lap.lap_number,
