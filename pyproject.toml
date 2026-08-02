@@ -17,6 +17,7 @@ f1-telemetry-probe = "f1_telemetry.probe:main"
 f1-telemetry-capture = "f1_telemetry.capture:main"
 f1-telemetry-replay = "f1_telemetry.replay:main"
 f1-telemetry-normalize = "f1_telemetry.normalize:main"
+f1-telemetry-analyze = "f1_telemetry.lap_analysis:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

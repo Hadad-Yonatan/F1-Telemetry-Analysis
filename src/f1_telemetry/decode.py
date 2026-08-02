@@ -4,13 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from f1.packets import PacketCarTelemetryData, PacketHeader, PacketLapData
+from f1.packets import (
+    PacketCarTelemetryData,
+    PacketHeader,
+    PacketLapData,
+    PacketSessionData,
+    PacketSessionHistoryData,
+)
 
 F1_25_PACKET_FORMAT = 2025
 F1_25_GAME_YEAR = 25
 PACKET_VERSION = 1
 LAP_DATA_PACKET_ID = 2
 CAR_TELEMETRY_PACKET_ID = 6
+SESSION_PACKET_ID = 1
+SESSION_HISTORY_PACKET_ID = 11
 MAX_CARS = 22
 
 FrameKey = tuple[int, int, int, int]
@@ -65,6 +73,50 @@ class DecodedCarTelemetry:
     gear: int
     engine_rpm: int
     drs: bool
+
+
+@dataclass(frozen=True)
+class DecodedSessionData:
+    identity: PacketIdentity
+    track_length: int
+    track_id: int
+    session_type: int
+    sector2_distance: float
+    sector3_distance: float
+
+
+@dataclass(frozen=True)
+class DecodedLapHistory:
+    lap_number: int
+    lap_time_ms: int
+    sector1_time_ms: int
+    sector2_time_ms: int
+    sector3_time_ms: int
+    validity_flags: int
+
+    @property
+    def officially_valid(self) -> bool:
+        return self.validity_flags & 0x0F == 0x0F
+
+    @property
+    def structurally_complete(self) -> bool:
+        sectors = (
+            self.sector1_time_ms,
+            self.sector2_time_ms,
+            self.sector3_time_ms,
+        )
+        return (
+            self.lap_time_ms > 0
+            and all(value > 0 for value in sectors)
+            and abs(sum(sectors) - self.lap_time_ms) <= 5
+        )
+
+
+@dataclass(frozen=True)
+class DecodedSessionHistory:
+    identity: PacketIdentity
+    car_index: int
+    laps: tuple[DecodedLapHistory, ...]
 
 
 def _decode_header(payload: bytes) -> PacketHeader:
@@ -191,3 +243,71 @@ def decode_car_telemetry(payload: bytes) -> DecodedCarTelemetry:
         drs=bool(telemetry.drs),
     )
 
+
+def decode_session_data(payload: bytes) -> DecodedSessionData:
+    """Decode track length and sector boundaries from Session Data."""
+    header = _decode_header(payload)
+    _validate_packet(
+        payload,
+        header,
+        expected_packet_id=SESSION_PACKET_ID,
+        expected_size=PacketSessionData.size(),
+    )
+    packet = PacketSessionData.unpack(payload)
+    return DecodedSessionData(
+        identity=_identity(packet.header),
+        track_length=int(packet.track_length),
+        track_id=int(packet.track_id),
+        session_type=int(packet.session_type),
+        sector2_distance=float(packet.sector2_lap_distance_start),
+        sector3_distance=float(packet.sector3_lap_distance_start),
+    )
+
+
+def _combined_time_ms(minutes: int, milliseconds: int) -> int:
+    return int(minutes) * 60_000 + int(milliseconds)
+
+
+def decode_session_history(payload: bytes) -> DecodedSessionHistory:
+    """Decode completed-lap timing and official validity flags for one car."""
+    header = _decode_header(payload)
+    _validate_packet(
+        payload,
+        header,
+        expected_packet_id=SESSION_HISTORY_PACKET_ID,
+        expected_size=PacketSessionHistoryData.size(),
+    )
+    packet = PacketSessionHistoryData.unpack(payload)
+    if packet.num_laps > 100:
+        raise PacketDecodeError(
+            f"session history has invalid lap count {packet.num_laps}"
+        )
+
+    laps = []
+    for index in range(packet.num_laps):
+        lap = packet.lap_history_data[index]
+        laps.append(
+            DecodedLapHistory(
+                lap_number=index + 1,
+                lap_time_ms=int(lap.lap_time_in_ms),
+                sector1_time_ms=_combined_time_ms(
+                    lap.sector1_time_minutes_part,
+                    lap.sector1_time_ms_part,
+                ),
+                sector2_time_ms=_combined_time_ms(
+                    lap.sector2_time_minutes_part,
+                    lap.sector2_time_ms_part,
+                ),
+                sector3_time_ms=_combined_time_ms(
+                    lap.sector3_time_minutes_part,
+                    lap.sector3_time_ms_part,
+                ),
+                validity_flags=int(lap.lap_valid_bit_flags),
+            )
+        )
+
+    return DecodedSessionHistory(
+        identity=_identity(packet.header),
+        car_index=int(packet.car_idx),
+        laps=tuple(laps),
+    )

@@ -55,6 +55,21 @@ their units are defined in
 [`docs/normalized-sample-v1.md`](docs/normalized-sample-v1.md). Generated CSV
 and capture files under `data/` are ignored by Git.
 
+## Compare valid laps
+
+Validate official lap history, discard incomplete and invalid laps, reconstruct
+the final attempt after lap restarts, and compare every valid lap with the
+fastest valid lap:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.lap_analysis data/captures/example.f1cap
+```
+
+The analyzer resamples traces on a one-metre distance grid, verifies the final
+delta against the official lap-time difference, and ranks continuous time-loss
+regions. The rules and thresholds are documented in
+[`docs/lap-analysis-v1.md`](docs/lap-analysis-v1.md).
+
 Run the automated tests with:
 
 ```bash
