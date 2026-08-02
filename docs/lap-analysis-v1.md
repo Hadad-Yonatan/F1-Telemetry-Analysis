@@ -47,3 +47,27 @@ the region. These are descriptive trace differences, not proof of causation.
 Braking-point and throttle-application timing will be added as the observation
 logic matures.
 
+Evidence labels use fixed numeric rules. A region is labeled for lower minimum
+speed when the comparison is more than 2 km/h lower, for lower average
+throttle when it is more than 0.05 lower, and for higher average brake when it
+is more than 0.05 higher. A region that crosses none of those thresholds is
+labeled as a mixed trace difference.
+
+## Stable output bundle
+
+With `--output-dir`, the analyzer creates a new directory containing:
+
+- `analysis.json`, with capture identity, algorithm parameters, session and
+  eligibility metadata, selected laps, sector deltas, finish verification,
+  loss regions, and numeric evidence;
+- one `lap-XX-vs-YY.csv` per comparison, containing the complete aligned time,
+  delta, speed, throttle, brake, steering, and gear traces; and
+- one matching `lap-XX-vs-YY.svg` six-panel plot per comparison.
+
+The complete bundle is written to a temporary sibling directory and renamed
+into place only after every file succeeds. Existing destinations are rejected.
+Distances are serialized to three decimal places, time and continuous
+telemetry values to six decimal places, and integer fields remain integers.
+JSON keys are sorted, non-finite numbers are rejected, and no execution time is
+included, so repeated analysis of the same capture and configuration produces
+byte-identical files.

@@ -1,0 +1,261 @@
+import csv
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from f1_telemetry.analysis_output import CSV_COLUMNS, write_analysis_bundle
+from f1_telemetry.capture_format import CaptureWriter
+from f1_telemetry.lap_analysis import (
+    LapTrace,
+    LapValidation,
+    NormalizationSummary,
+    PreparedSession,
+    analyze_capture,
+)
+from f1_telemetry.normalize import NormalizedSample
+
+
+def make_sample(
+    frame: int,
+    lap_number: int,
+    distance: float,
+    elapsed_ms: int,
+    speed: int,
+) -> NormalizedSample:
+    return NormalizedSample(
+        captured_unix_ns=frame,
+        session_uid=123,
+        frame_identifier=frame,
+        overall_frame_identifier=frame,
+        session_time=elapsed_ms / 1000,
+        player_car_index=0,
+        lap_number=lap_number,
+        lap_distance=distance,
+        total_distance=distance,
+        current_lap_time_ms=elapsed_ms,
+        last_lap_time_ms=0,
+        sector=0,
+        speed_kph=speed,
+        throttle=0.75,
+        brake=0.10,
+        steering=-0.25,
+        clutch=0,
+        gear=4,
+        engine_rpm=10_000,
+        drs=False,
+        lap_invalid=False,
+        pit_status=0,
+        driver_status=1,
+        result_status=2,
+    )
+
+
+def validation(
+    lap_number: int,
+    lap_time_ms: int,
+    sectors: tuple[int, int, int],
+    *,
+    valid: bool = True,
+    complete: bool = True,
+) -> LapValidation:
+    eligible = valid and complete
+    if eligible:
+        reason = "eligible"
+    elif not complete:
+        reason = "incomplete"
+    else:
+        reason = "officially invalid"
+    return LapValidation(
+        lap_number=lap_number,
+        official_lap_time_ms=lap_time_ms,
+        sector_times_ms=sectors,
+        validity_flags=15 if valid else 2,
+        officially_valid=valid,
+        structurally_complete=complete,
+        eligible=eligible,
+        reason=reason,
+    )
+
+
+def trace(
+    lap_number: int,
+    lap_time_ms: int,
+    sectors: tuple[int, int, int],
+    speed: int,
+    discarded: int = 0,
+) -> LapTrace:
+    return LapTrace(
+        lap_number=lap_number,
+        official_lap_time_ms=lap_time_ms,
+        samples=(
+            make_sample(lap_number * 10, lap_number, 0, 0, speed),
+            make_sample(
+                lap_number * 10 + 1,
+                lap_number,
+                99,
+                lap_time_ms - 100,
+                speed,
+            ),
+        ),
+        discarded_attempt_frames=discarded,
+        sector_times_ms=sectors,
+    )
+
+
+def prepared_session() -> PreparedSession:
+    lap1 = validation(1, 2_000, (600, 700, 700))
+    lap2 = validation(2, 1_900, (600, 600, 700), valid=False)
+    lap3 = validation(3, 1_500, (400, 500, 600))
+    lap4 = validation(4, 0, (0, 0, 0), complete=False)
+    lap5 = validation(5, 2_500, (800, 800, 900))
+    return PreparedSession(
+        session_uid=123,
+        track_length=100,
+        track_id=10,
+        sector2_distance=33.333,
+        sector3_distance=66.667,
+        validations=(lap1, lap2, lap3, lap4, lap5),
+        laps=(
+            trace(1, 2_000, lap1.sector_times_ms, 190),
+            trace(3, 1_500, lap3.sector_times_ms, 220, discarded=2),
+            trace(5, 2_500, lap5.sector_times_ms, 180, discarded=4),
+        ),
+        normalization=NormalizationSummary(
+            capture_datagrams=100,
+            samples_joined=20,
+        ),
+    )
+
+
+class AnalysisSelectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.capture = Path(self.temporary.name) / "session.f1cap"
+        with CaptureWriter(self.capture, created_unix_ns=123_456_789):
+            pass
+        self.session = prepared_session()
+
+    def analyze(self, **options: object):
+        with patch(
+            "f1_telemetry.lap_analysis.prepare_session",
+            return_value=self.session,
+        ):
+            return analyze_capture(self.capture, **options)
+
+    def test_defaults_to_fastest_eligible_lap_against_all_others(self) -> None:
+        result = self.analyze()
+
+        self.assertEqual(result.reference_lap, 3)
+        self.assertEqual(
+            [comparison.comparison_lap for comparison in result.comparisons],
+            [1, 5],
+        )
+        self.assertEqual(result.comparisons[0].sector_deltas_s, (0.2, 0.2, 0.1))
+        self.assertEqual(
+            result.comparisons[0].reference_discarded_attempt_frames,
+            2,
+        )
+        self.assertTrue(
+            all(
+                abs(comparison.final_delta_error_s) <= 1e-9
+                for comparison in result.comparisons
+            )
+        )
+
+    def test_explicit_reference_and_comparison_override_defaults(self) -> None:
+        result = self.analyze(reference_lap=1, comparison_laps=(5,))
+
+        self.assertEqual(result.reference_lap, 1)
+        self.assertEqual(len(result.comparisons), 1)
+        self.assertEqual(result.comparisons[0].comparison_lap, 5)
+        self.assertEqual(result.comparisons[0].official_delta_s, 0.5)
+
+    def test_rejects_invalid_incomplete_missing_and_identical_laps(self) -> None:
+        cases = (
+            ({"reference_lap": 2}, "officially invalid"),
+            ({"comparison_laps": (4,)}, "incomplete"),
+            ({"comparison_laps": (99,)}, "missing"),
+            (
+                {"reference_lap": 3, "comparison_laps": (3,)},
+                "must be different",
+            ),
+        )
+        for options, message in cases:
+            with self.subTest(options=options):
+                with self.assertRaisesRegex(ValueError, message):
+                    self.analyze(**options)
+
+    def test_writes_reproducible_complete_bundle(self) -> None:
+        result = self.analyze()
+        first = Path(self.temporary.name) / "first"
+        second = Path(self.temporary.name) / "second"
+
+        write_analysis_bundle(result, first)
+        write_analysis_bundle(result, second)
+
+        expected_names = {
+            "analysis.json",
+            "lap-03-vs-01.csv",
+            "lap-03-vs-01.svg",
+            "lap-03-vs-05.csv",
+            "lap-03-vs-05.svg",
+        }
+        self.assertEqual({path.name for path in first.iterdir()}, expected_names)
+        self.assertEqual({path.name for path in second.iterdir()}, expected_names)
+        for name in expected_names:
+            self.assertEqual((first / name).read_bytes(), (second / name).read_bytes())
+
+        document = json.loads((first / "analysis.json").read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(document["capture"]["basename"], "session.f1cap")
+        self.assertEqual(document["selected_reference_lap"], 3)
+        self.assertEqual(len(document["lap_eligibility"]), 5)
+        self.assertTrue(document["comparisons"][0]["finish_delta_verified"])
+        self.assertIn(
+            "minimum_speed_difference_kph",
+            document["comparisons"][0]["loss_regions"][0]["evidence"],
+        )
+        self.assertTrue((first / "analysis.json").read_bytes().endswith(b"\n"))
+        self.assertNotIn("NaN", (first / "analysis.json").read_text(encoding="utf-8"))
+
+        with (first / "lap-03-vs-01.csv").open(
+            newline="",
+            encoding="utf-8",
+        ) as file:
+            reader = csv.DictReader(file)
+            rows = list(reader)
+        self.assertEqual(tuple(reader.fieldnames or ()), CSV_COLUMNS)
+        self.assertEqual(rows[0]["distance_m"], "0.000")
+        self.assertEqual(rows[-1]["comparison_elapsed_s"], "2.000000")
+        svg = (first / "lap-03-vs-01.svg").read_text(encoding="utf-8")
+        self.assertIn("Lap 3 vs lap 1", svg)
+        self.assertIn("Delta +0.500 s", svg)
+        with self.assertRaisesRegex(FileExistsError, "already exists"):
+            write_analysis_bundle(result, first)
+
+    def test_output_failure_leaves_no_bundle_or_temporary_directory(self) -> None:
+        result = self.analyze()
+        output = Path(self.temporary.name) / "failed"
+
+        def fail_svg(
+            _session: PreparedSession,
+            _comparison: object,
+            _output: Path,
+        ) -> None:
+            raise RuntimeError("injected output failure")
+
+        with self.assertRaisesRegex(RuntimeError, "injected output failure"):
+            write_analysis_bundle(result, output, svg_writer=fail_svg)
+
+        self.assertFalse(output.exists())
+        self.assertEqual(
+            list(Path(self.temporary.name).glob(".failed.tmp-*")),
+            [],
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from f1_telemetry.lap_analysis import (
+    LapComparison,
     PreparedSession,
-    ResampledLap,
-    compare_laps,
-    prepare_session,
-    resample_lap,
+    analyze_capture,
 )
 
 WIDTH = 1400
@@ -62,19 +60,13 @@ def _points(
 
 def write_comparison_svg(
     session: PreparedSession,
-    reference: ResampledLap,
-    comparison: ResampledLap,
+    result: LapComparison,
     output: Path,
 ) -> None:
     """Write aligned speed, input, gear, and delta panels to a new SVG."""
-    result = compare_laps(reference, comparison)
-    delta = tuple(
-        comparison_time - reference_time
-        for reference_time, comparison_time in zip(
-            reference.elapsed_s,
-            comparison.elapsed_s,
-        )
-    )
+    reference = result.reference
+    comparison = result.comparison
+    delta = result.delta_s
     delta_padding = max(0.05, (max(delta) - min(delta)) * 0.08)
     panels = (
         Panel(
@@ -233,19 +225,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     try:
-        session = prepare_session(args.capture)
-        fastest = min(session.laps, key=lambda lap: lap.official_lap_time_ms)
-        comparison_trace = next(
-            (lap for lap in session.laps if lap.lap_number == args.comparison_lap),
-            None,
+        analysis = analyze_capture(
+            args.capture,
+            comparison_laps=(args.comparison_lap,),
         )
-        if comparison_trace is None:
-            raise ValueError(f"lap {args.comparison_lap} is not eligible")
-        if comparison_trace.lap_number == fastest.lap_number:
-            raise ValueError("comparison lap is already the fastest reference")
-        reference = resample_lap(fastest, session.track_length)
-        comparison = resample_lap(comparison_trace, session.track_length)
-        write_comparison_svg(session, reference, comparison, args.output)
+        write_comparison_svg(
+            analysis.session,
+            analysis.comparisons[0],
+            args.output,
+        )
         print(f"Comparison SVG written: {args.output}")
     except (OSError, ValueError) as error:
         raise SystemExit(f"Could not create plot: {error}") from error

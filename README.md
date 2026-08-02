@@ -70,6 +70,19 @@ delta against the official lap-time difference, and ranks continuous time-loss
 regions. The rules and thresholds are documented in
 [`docs/lap-analysis-v1.md`](docs/lap-analysis-v1.md).
 
+Create a reproducible analysis bundle in a new directory:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.lap_analysis \
+  data/captures/example.f1cap --output-dir data/analysis/example
+```
+
+The bundle contains canonical session and comparison metadata in
+`analysis.json`, a complete distance-aligned CSV trace for each comparison,
+and a matching six-panel SVG. Existing output directories are never
+overwritten. Use `--reference-lap` to replace the default fastest eligible
+reference and repeat `--comparison-lap` to select specific eligible laps.
+
 Create a dependency-free SVG comparison against the fastest eligible lap:
 
 ```bash
