@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "f1-telemetry-analysis"
+version = "0.1.0"
+description = "Capture and analyze F1 25 UDP telemetry."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "f1-packets==2025.1.1",
+]
+
+[project.scripts]
+f1-telemetry-probe = "f1_telemetry.probe:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
