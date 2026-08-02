@@ -38,6 +38,10 @@ def make_sample(
     elapsed_ms: int,
     *,
     speed: int = 200,
+    throttle: float = 1.0,
+    brake: float = 0.0,
+    steering: float = 0.0,
+    gear: int = 5,
 ) -> NormalizedSample:
     return NormalizedSample(
         captured_unix_ns=overall_frame,
@@ -53,11 +57,11 @@ def make_sample(
         last_lap_time_ms=0,
         sector=0,
         speed_kph=speed,
-        throttle=1.0,
-        brake=0.0,
-        steering=0.0,
+        throttle=throttle,
+        brake=brake,
+        steering=steering,
         clutch=0,
-        gear=5,
+        gear=gear,
         engine_rpm=10_000,
         drs=False,
         lap_invalid=False,
@@ -106,6 +110,58 @@ class SessionDecoderTests(unittest.TestCase):
 
 
 class LapReconstructionTests(unittest.TestCase):
+    def test_resampling_preserves_source_field_integrity(self) -> None:
+        trace = LapTrace(
+            lap_number=1,
+            official_lap_time_ms=5_000,
+            samples=(
+                make_sample(
+                    1,
+                    10,
+                    1_000,
+                    speed=120,
+                    throttle=0.2,
+                    brake=0.8,
+                    steering=-0.6,
+                    gear=2,
+                ),
+                make_sample(
+                    2,
+                    20,
+                    3_000,
+                    speed=220,
+                    throttle=0.6,
+                    brake=0.2,
+                    steering=0.4,
+                    gear=4,
+                ),
+            ),
+            discarded_attempt_frames=0,
+        )
+
+        lap = resample_lap(trace, 30, step=5)
+
+        self.assertEqual(lap.distance, (0, 5, 10, 15, 20, 25, 30))
+        self.assertEqual(lap.elapsed_s[0], 0.0)
+        self.assertEqual(lap.speed_kph[0], 120)
+        self.assertEqual(lap.throttle[0], 0.2)
+        self.assertEqual(lap.brake[0], 0.8)
+        self.assertEqual(lap.steering[0], -0.6)
+        self.assertEqual(lap.gear[0], 2)
+        self.assertAlmostEqual(lap.elapsed_s[3], 2.0)
+        self.assertAlmostEqual(lap.speed_kph[3], 170.0)
+        self.assertAlmostEqual(lap.throttle[3], 0.4)
+        self.assertAlmostEqual(lap.brake[3], 0.5)
+        self.assertAlmostEqual(lap.steering[3], -0.1)
+        self.assertEqual(lap.gear[2], 2)
+        self.assertEqual(lap.gear[3], 4)
+        self.assertEqual(lap.elapsed_s[-1], 5.0)
+        self.assertEqual(lap.speed_kph[-1], 220)
+        self.assertEqual(lap.throttle[-1], 0.6)
+        self.assertEqual(lap.brake[-1], 0.2)
+        self.assertEqual(lap.steering[-1], 0.4)
+        self.assertEqual(lap.gear[-1], 4)
+
     def test_keeps_only_final_timed_attempt_after_restart(self) -> None:
         samples = [
             make_sample(1, 0, 0),
