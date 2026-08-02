@@ -10,6 +10,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
+from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
 from f1_telemetry.lap_analysis import (
     AnalysisResult,
     LapComparison,
@@ -46,11 +47,76 @@ def _round_continuous(value: float) -> float:
     return round(value, 6)
 
 
+def _optional_distance(value: float | None) -> float | None:
+    return None if value is None else _round_distance(value)
+
+
+def _event_document(event: DrivingEvent) -> dict[str, object]:
+    return {
+        "event_index": event.event_index,
+        "braking_start_distance_m": _round_distance(
+            event.braking_start_distance
+        ),
+        "braking_end_distance_m": _round_distance(event.braking_end_distance),
+        "braking_distance_m": _round_distance(event.braking_distance),
+        "peak_brake": _round_continuous(event.peak_brake),
+        "minimum_speed_distance_m": _round_distance(
+            event.minimum_speed_distance
+        ),
+        "minimum_speed_kph": _round_continuous(event.minimum_speed_kph),
+        "throttle_reapplication_distance_m": _optional_distance(
+            event.throttle_reapplication_distance
+        ),
+        "coast_distance_m": _round_distance(event.coast_distance),
+        "analysis_end_distance_m": _round_distance(event.analysis_end_distance),
+    }
+
+
+def _event_match_document(match: MatchedDrivingEvent) -> dict[str, object]:
+    differences = match.differences
+    return {
+        "match_index": match.match_index,
+        "reference_event_index": match.reference.event_index,
+        "comparison_event_index": match.comparison.event_index,
+        "differences": {
+            "braking_start_distance_m": _round_distance(
+                differences.braking_start_distance
+            ),
+            "braking_end_distance_m": _round_distance(
+                differences.braking_end_distance
+            ),
+            "braking_distance_m": _round_distance(
+                differences.braking_distance
+            ),
+            "peak_brake": _round_continuous(differences.peak_brake),
+            "minimum_speed_distance_m": _round_distance(
+                differences.minimum_speed_distance
+            ),
+            "minimum_speed_kph": _round_continuous(
+                differences.minimum_speed_kph
+            ),
+            "throttle_reapplication_distance_m": _optional_distance(
+                differences.throttle_reapplication_distance
+            ),
+            "coast_distance_m": _round_distance(differences.coast_distance),
+        },
+        "evidence_labels": list(match.evidence_labels),
+    }
+
+
 def _region_document(region: LossRegion) -> dict[str, object]:
     return {
         "start_distance_m": _round_distance(region.start_distance),
         "end_distance_m": _round_distance(region.end_distance),
         "time_loss_s": _round_continuous(region.time_loss_s),
+        "sector": region.sector,
+        "matched_event_index": region.matched_event_index,
+        "unmatched_reference_event_indices": list(
+            region.unmatched_reference_event_indices
+        ),
+        "unmatched_comparison_event_indices": list(
+            region.unmatched_comparison_event_indices
+        ),
         "evidence": {
             "labels": list(region.evidence_labels),
             "reference_min_speed_kph": _round_continuous(
@@ -106,6 +172,23 @@ def _comparison_document(comparison: LapComparison) -> dict[str, object]:
         ),
         "finish_delta_tolerance_s": 0.000000001,
         "finish_delta_verified": abs(comparison.final_delta_error_s) <= 1e-9,
+        "driving_events": {
+            "reference": [
+                _event_document(event) for event in comparison.reference_events
+            ],
+            "comparison": [
+                _event_document(event) for event in comparison.comparison_events
+            ],
+            "matches": [
+                _event_match_document(match) for match in comparison.event_matches
+            ],
+            "unmatched_reference_event_indices": list(
+                comparison.unmatched_reference_event_indices
+            ),
+            "unmatched_comparison_event_indices": list(
+                comparison.unmatched_comparison_event_indices
+            ),
+        },
         "loss_regions": [
             _region_document(region) for region in comparison.regions
         ],
@@ -139,6 +222,70 @@ def _analysis_document(result: AnalysisResult) -> dict[str, object]:
                 ),
                 "minimum_brake_difference": _round_continuous(
                     config.minimum_brake_difference
+                ),
+            },
+            "driving_event_parameters": {
+                "brake_on_threshold": _round_continuous(
+                    config.brake_on_threshold
+                ),
+                "brake_on_sustain_m": _round_distance(
+                    config.brake_on_sustain_m
+                ),
+                "brake_off_threshold": _round_continuous(
+                    config.brake_off_threshold
+                ),
+                "brake_off_sustain_m": _round_distance(
+                    config.brake_off_sustain_m
+                ),
+                "brake_gap_merge_m": _round_distance(
+                    config.brake_gap_merge_m
+                ),
+                "minimum_braking_event_length_m": _round_distance(
+                    config.minimum_braking_event_length_m
+                ),
+                "minimum_peak_brake": _round_continuous(
+                    config.minimum_peak_brake
+                ),
+                "minimum_speed_search_m": _round_distance(
+                    config.minimum_speed_search_m
+                ),
+                "full_throttle_threshold": _round_continuous(
+                    config.full_throttle_threshold
+                ),
+                "full_throttle_sustain_m": _round_distance(
+                    config.full_throttle_sustain_m
+                ),
+                "coast_throttle_threshold": _round_continuous(
+                    config.coast_throttle_threshold
+                ),
+                "coast_brake_threshold": _round_continuous(
+                    config.coast_brake_threshold
+                ),
+                "coast_minimum_speed_kph": _round_continuous(
+                    config.coast_minimum_speed_kph
+                ),
+                "minimum_coast_length_m": _round_distance(
+                    config.minimum_coast_length_m
+                ),
+                "maximum_event_match_distance_m": _round_distance(
+                    config.maximum_event_match_distance_m
+                ),
+                "event_exit_extension_m": _round_distance(
+                    config.event_exit_extension_m
+                ),
+                "minimum_braking_point_difference_m": _round_distance(
+                    config.minimum_braking_point_difference_m
+                ),
+                "minimum_braking_distance_difference_m": _round_distance(
+                    config.minimum_braking_distance_difference_m
+                ),
+                "minimum_coast_difference_m": _round_distance(
+                    config.minimum_coast_difference_m
+                ),
+                "minimum_throttle_reapplication_difference_m": (
+                    _round_distance(
+                        config.minimum_throttle_reapplication_difference_m
+                    )
                 ),
             },
         },
