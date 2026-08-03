@@ -21,6 +21,74 @@
       "size_bytes": 410010006,
       "track_id": 10,
       "track_length_m": 7007
+    },
+    {
+      "capture_file": "monza-20260803-v2.f1cap",
+      "case_id": "monza-time-trial",
+      "expected_capture_datagrams": 379274,
+      "expected_comparison_laps": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        10,
+        11
+      ],
+      "expected_eligible_laps": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11
+      ],
+      "expected_normalized_samples": 63621,
+      "expected_reference_lap": 9,
+      "sha256": "226acfb758b11acd9090eb542e377ec8e629e10bc95ecbf1f2b93a03e81dbe94",
+      "size_bytes": 413815034,
+      "track_id": 11,
+      "track_length_m": 5798
+    },
+    {
+      "capture_file": "monaco-20260803.f1cap",
+      "case_id": "monaco-time-trial",
+      "expected_capture_datagrams": 1093263,
+      "expected_comparison_laps": [
+        4,
+        9,
+        10,
+        13,
+        15,
+        19,
+        21,
+        23,
+        25
+      ],
+      "expected_eligible_laps": [
+        4,
+        9,
+        10,
+        13,
+        15,
+        19,
+        21,
+        23,
+        25,
+        26
+      ],
+      "expected_normalized_samples": 183040,
+      "expected_reference_lap": 26,
+      "sha256": "56f3114011889dae232c18262312367e3d91a4ed750393cc6cc0166cdd89e9aa",
+      "size_bytes": 1190734450,
+      "track_id": 5,
+      "track_length_m": 3323
     }
   ],
   "quality_gates": {
