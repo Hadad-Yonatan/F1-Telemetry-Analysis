@@ -96,6 +96,34 @@ PYTHONPATH=src python -m f1_telemetry.plot data/captures/example.f1cap \
 The plot contains aligned speed, delta, throttle, brake, steering, and gear
 panels. Detected time-loss regions are shaded on the delta panel.
 
+## Validate across circuits
+
+The tracked cross-circuit manifest locks capture identity, session invariants,
+lap selection, and per-capture quality gates. Run the suite entirely offline:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.validation run \
+  validation/cross-circuit-v1.json \
+  --capture-dir data/captures \
+  --output-dir data/validation/cross-circuit-v1
+```
+
+The command atomically writes deterministic `validation.json` and
+`validation.md` files. Exit status 0 means every check passed, 1 means analysis
+completed but at least one invariant or quality gate failed, and 2 means an
+input or capture-identity error prevented a valid run. Existing output
+directories are never overwritten.
+
+After recording a new circuit, print a candidate case for review:
+
+```bash
+PYTHONPATH=src python -m f1_telemetry.validation baseline \
+  data/captures/monza-YYYYMMDD.f1cap --case-id monza-time-trial
+```
+
+Raw captures and generated validation directories remain local and ignored.
+The manifest is the only validation artifact committed to the repository.
+
 Run the automated tests with:
 
 ```bash

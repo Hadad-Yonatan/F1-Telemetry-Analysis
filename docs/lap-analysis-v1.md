@@ -100,3 +100,26 @@ telemetry values to six decimal places, and integer fields remain integers.
 JSON keys are sorted, non-finite numbers are rejected, and no execution time is
 included, so repeated analysis of the same capture and configuration produces
 byte-identical files.
+
+## Cross-circuit validation
+
+`f1-telemetry-validate` applies the same algorithm to a strict, versioned
+manifest of local captures. Each case freezes the capture SHA-256 and byte
+size, track identity and length, datagram and normalized-sample totals,
+eligible laps, fastest reference, and comparison laps. Decode errors,
+unmatched lap or telemetry frames, and finish-delta errors above 1 nanosecond
+are always failures.
+
+Quality measurements are calculated independently for every capture. Matched
+region coverage divides regions with a matched driving event by all loss
+regions. Event-evidence coverage also counts regions containing an explicit
+one-sided event. Unmatched-event rate divides all unmatched reference and
+comparison events by all detected reference and comparison events across the
+lap pairs. A capture with no regions receives full region coverage; a capture
+with no events receives a zero unmatched-event rate.
+
+Version 1 gates require matched-region coverage of at least 0.65,
+event-evidence coverage of at least 0.80, and unmatched-event rate of at most
+0.30. Diagnostic counts are reported but not frozen in the manifest. The JSON
+and Markdown validation files contain no execution timestamp and are created
+through a temporary sibling directory followed by an atomic rename.

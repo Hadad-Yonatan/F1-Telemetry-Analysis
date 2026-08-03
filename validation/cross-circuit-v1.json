@@ -1,0 +1,33 @@
+{
+  "cases": [
+    {
+      "capture_file": "f1-telemetry-20260802T121252Z.f1cap",
+      "case_id": "spa-time-trial",
+      "expected_capture_datagrams": 375835,
+      "expected_comparison_laps": [
+        1,
+        4,
+        6
+      ],
+      "expected_eligible_laps": [
+        1,
+        4,
+        5,
+        6
+      ],
+      "expected_normalized_samples": 63036,
+      "expected_reference_lap": 5,
+      "sha256": "89b8908e7358bf52dd284da504d5d4572c2555d00ac11a281aa794936aee5258",
+      "size_bytes": 410010006,
+      "track_id": 10,
+      "track_length_m": 7007
+    }
+  ],
+  "quality_gates": {
+    "maximum_unmatched_event_rate": 0.3,
+    "minimum_event_evidence_coverage": 0.8,
+    "minimum_matched_region_coverage": 0.65
+  },
+  "schema_version": 1,
+  "suite_id": "cross-circuit-v1"
+}
