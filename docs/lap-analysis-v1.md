@@ -44,8 +44,8 @@ seconds. Regions are ranked by delta increase.
 
 Evidence currently includes minimum speed and mean throttle and brake within
 the region. These are descriptive trace differences, not proof of causation.
-Braking-point and throttle-application timing will be added as the observation
-logic matures.
+Braking-point and throttle-application timing are supplied by the separate
+fixed driving-event rules below.
 
 Evidence labels use fixed numeric rules. A region is labeled for lower minimum
 speed when the comparison is more than 2 km/h lower, for lower average
@@ -79,16 +79,72 @@ Event labels require at least 5 metres of braking-point difference, 10 metres
 of braking-distance difference, 10 metres of coasting difference, 5 metres of
 throttle-reapplication difference, or 2 km/h of minimum-speed difference.
 
+## Corner catalog
+
+The bundled `corner-catalog-v1.json` is a strict, immutable F1 25 catalog for
+Monaco, Spa-Francorchamps, and Monza. Its root records catalog schema version
+1, catalog ID `f1-25-corners-v1`, packet format 2025, game year 25, and ordered
+track definitions. The exact bundled bytes currently have SHA-256
+`8d402be1e5eb28290b09f40fb3122d8e1c5de2c948b974ef31ac10bf01a7cdf1`.
+Every saved analysis also records this digest, the selection status, and the
+complete selected track definition so a result never depends on a later
+installed catalog.
+
+Each track definition contains its exact in-game track ID and Session-packet
+length. Each ordered turn contains a stable lowercase ASCII ID, official turn
+number, display name, left/right direction, and entry, apex, and exit distance.
+Optional complexes contain ordered consecutive turn IDs. Catalog documents
+reject unknown or missing fields, duplicate identifiers or turn numbers,
+non-finite values, overlapping turn windows, invalid complex membership, and
+the wrong packet format or game year.
+
+Selection uses the exact track ID. A missing track continues without corner
+labels. A matching ID whose catalog length differs from the Session packet is
+fatal because it may represent a different layout. `--corner-catalog PATH`
+completely replaces the bundled catalog for one run; `--no-corner-catalog`
+records an explicit disabled selection.
+
+A loss region overlaps a turn only when their shared distance is greater than
+zero. All overlaps are recorded in catalog order. The primary turn has the
+greatest overlap, with earlier entry distance and then stable turn ID resolving
+ties. Every complex containing an overlapping turn is recorded. When a region
+spans two or more turns in one complex, reports use the complex name and turn
+range; otherwise they use the primary turn number and name. Regions with no
+overlap retain the existing sector and metre-range description.
+
+### Calibration methodology
+
+The three bundled definitions were calibrated against the locked dry Time
+Trial captures used by the cross-circuit validation suite. All eligible laps
+were resampled at one metre. A local review trace used the per-metre median of
+steering, speed, braking ranges, minimum-speed locations, and sustained
+throttle reapplication. Only the calibration steering trace was smoothed, with
+an 11-metre centered mean; analysis inputs and formulas were not changed.
+
+Official turn order, numbering, direction, and names were reviewed against the
+[Formula 1 Spa corner guide](https://www.formula1.com/en/latest/article/explained-how-every-corner-at-the-circuit-de-spa-francorchamps-got-its-name.1o6cyXf5F6q9VFFcgMqTqs.1o6cyXf5F6q9VFFcgMqTqs),
+[Monza circuit guide](https://www.monzanet.it/en/circuit/),
+[FIA 2025 Monaco circuit map](https://www.fia.com/system/files/decision-document/2025_monaco_event_-_circuit_map_-_monaco_2025_revised.pdf),
+and [Formula 1 Monaco corner guide](https://www.formula1.com/en/latest/article/explained-how-every-monaco-corner-got-its-name.5ClYqWmfpeUpsRJA6mDNaX.5ClYqWmfpeUpsRJA6mDNaX).
+Apexes use reviewed direction-consistent steering peaks. Entry and exit use
+sustained steering transitions around the apex, with at least five continuous
+metres reviewed; adjacent chicane turns split at the steering direction change.
+All eligible laps were checked to avoid fitting the definition to the selected
+reference lap. Committed distances are rounded to three decimals, ordered,
+non-overlapping, and bounded by the locked in-game lengths: Monaco 3323 m, Spa
+7007 m, and Monza 5798 m.
+
 ## Stable output bundle
 
 With `--output-dir`, the analyzer creates a new directory containing:
 
 - `analysis.json`, with capture identity, algorithm parameters, session and
   eligibility metadata, selected laps, sector deltas, finish verification,
-  loss regions, driving events, matching state, and numeric evidence;
+  loss regions, driving events, matching state, numeric evidence, catalog
+  identity, the selected track definition, and per-region corner IDs;
 - `report.md`, with lap eligibility, every ranked loss region, sector and
-  distance context, factual event observations, and relative links to traces
-  and plots;
+  distance and corner context, factual event observations, and relative links
+  to traces and plots;
 - one `lap-XX-vs-YY.csv` per comparison, containing the complete aligned time,
   delta, speed, throttle, brake, steering, and gear traces; and
 - one matching `lap-XX-vs-YY.svg` six-panel plot per comparison.

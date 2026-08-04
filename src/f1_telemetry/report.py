@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from f1_telemetry.corner_catalog import TrackDefinition, format_corner_label
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
 from f1_telemetry.lap_analysis import AnalysisResult, LapComparison, LossRegion
 
@@ -103,10 +104,16 @@ def _region_lines(
     region: LossRegion,
     rank: int,
     maximum_match_distance: float,
+    track: TrackDefinition | None,
 ) -> list[str]:
+    corner_prefix = (
+        f"{format_corner_label(track, region.corner_context)}, "
+        if track is not None and region.corner_context is not None
+        else ""
+    )
     lines = [
         (
-            f"#### {rank}. Sector {region.sector}, "
+            f"#### {rank}. {corner_prefix}Sector {region.sector}, "
             f"{region.start_distance:.3f}–{region.end_distance:.3f} m "
             f"(+{region.time_loss_s:.3f} s)"
         ),
@@ -258,6 +265,7 @@ def render_markdown_report(result: AnalysisResult) -> str:
                     region,
                     rank,
                     result.config.maximum_event_match_distance_m,
+                    result.catalog_selection.track,
                 )
             )
 

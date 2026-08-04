@@ -1,4 +1,6 @@
 import csv
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -8,6 +10,14 @@ from unittest.mock import patch
 
 from f1_telemetry.analysis_output import CSV_COLUMNS, write_analysis_bundle
 from f1_telemetry.capture_format import CaptureWriter
+from f1_telemetry.corner_catalog import (
+    CatalogMetadata,
+    CornerCatalog,
+    CornerComplex,
+    TrackDefinition,
+    TurnDefinition,
+    load_bundled_corner_catalog,
+)
 from f1_telemetry.driving_events import (
     DrivingEvent,
     EventDifferences,
@@ -19,6 +29,7 @@ from f1_telemetry.lap_analysis import (
     NormalizationSummary,
     PreparedSession,
     analyze_capture,
+    print_analysis,
 )
 from f1_telemetry.normalize import NormalizedSample
 from f1_telemetry.report import render_markdown_report
@@ -136,6 +147,53 @@ def prepared_session() -> PreparedSession:
     )
 
 
+def matching_catalog() -> CornerCatalog:
+    turns = (
+        TurnDefinition(
+            turn_id="test-t01",
+            number=1,
+            display_name="First",
+            direction="left",
+            entry_distance_m=0.0,
+            apex_distance_m=25.0,
+            exit_distance_m=50.0,
+        ),
+        TurnDefinition(
+            turn_id="test-t02",
+            number=2,
+            display_name="Second",
+            direction="right",
+            entry_distance_m=50.0,
+            apex_distance_m=75.0,
+            exit_distance_m=100.0,
+        ),
+    )
+    return CornerCatalog(
+        metadata=CatalogMetadata(
+            schema_version=1,
+            catalog_id="test-corners-v1",
+            packet_format=2025,
+            game_year=25,
+            sha256="a" * 64,
+        ),
+        tracks=(
+            TrackDefinition(
+                track_id=10,
+                display_name="Test Circuit",
+                track_length_m=100,
+                turns=turns,
+                complexes=(
+                    CornerComplex(
+                        complex_id="test-chicane",
+                        display_name="Test Chicane",
+                        turn_ids=("test-t01", "test-t02"),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 class AnalysisSelectionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -146,11 +204,16 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.session = prepared_session()
 
     def analyze(self, **options: object):
+        catalog = options.pop("corner_catalog", None)
         with patch(
             "f1_telemetry.lap_analysis.prepare_session",
             return_value=self.session,
         ):
-            return analyze_capture(self.capture, **options)
+            return analyze_capture(
+                self.capture,
+                corner_catalog=catalog,
+                **options,
+            )
 
     def test_defaults_to_fastest_eligible_lap_against_all_others(self) -> None:
         result = self.analyze()
@@ -219,6 +282,8 @@ class AnalysisSelectionTests(unittest.TestCase):
         document = json.loads((first / "analysis.json").read_text(encoding="utf-8"))
         self.assertEqual(document["schema_version"], 1)
         self.assertEqual(document["algorithm"]["version"], "1.1.0")
+        self.assertEqual(document["corner_catalog"]["status"], "disabled")
+        self.assertIsNone(document["corner_catalog"]["selected_track"])
         self.assertEqual(
             document["algorithm"]["driving_event_parameters"][
                 "brake_on_threshold"
@@ -231,6 +296,9 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.assertTrue(document["comparisons"][0]["finish_delta_verified"])
         self.assertIn("driving_events", document["comparisons"][0])
         self.assertIn("sector", document["comparisons"][0]["loss_regions"][0])
+        self.assertIsNone(
+            document["comparisons"][0]["loss_regions"][0]["corner_context"]
+        )
         self.assertIn(
             "unmatched_comparison_event_indices",
             document["comparisons"][0]["loss_regions"][0],
@@ -266,6 +334,43 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.assertTrue((first / "report.md").read_bytes().endswith(b"\n"))
         with self.assertRaisesRegex(FileExistsError, "already exists"):
             write_analysis_bundle(result, first)
+
+    def test_catalog_context_is_shared_by_json_markdown_and_console(self) -> None:
+        result = self.analyze(corner_catalog=matching_catalog())
+        self.assertEqual(result.catalog_selection.status, "matched")
+        region = result.comparisons[0].regions[0]
+        assert region.corner_context is not None
+        self.assertEqual(region.corner_context.primary_turn_id, "test-t01")
+        self.assertEqual(
+            region.corner_context.overlapping_turn_ids,
+            ("test-t01", "test-t02"),
+        )
+        self.assertEqual(region.corner_context.complex_ids, ("test-chicane",))
+
+        output = Path(self.temporary.name) / "catalog-output"
+        write_analysis_bundle(result, output)
+        document = json.loads((output / "analysis.json").read_text(encoding="utf-8"))
+        catalog_document = document["corner_catalog"]
+        self.assertEqual(catalog_document["status"], "matched")
+        self.assertEqual(catalog_document["sha256"], "a" * 64)
+        self.assertEqual(catalog_document["selected_track"]["track_length_m"], 100)
+        region_document = document["comparisons"][0]["loss_regions"][0]
+        self.assertEqual(region_document["corner_context"]["primary_turn_id"], "test-t01")
+        self.assertEqual(
+            region_document["corner_context"]["overlapping_turn_ids"],
+            ["test-t01", "test-t02"],
+        )
+
+        report = render_markdown_report(result)
+        self.assertIn("Test Chicane (T1-T2), Sector 2", report)
+        console = io.StringIO()
+        with contextlib.redirect_stdout(console):
+            print_analysis(result)
+        self.assertIn("Test Chicane (T1-T2) | 0-100 m", console.getvalue())
+
+    def test_matching_track_id_with_wrong_length_stops_analysis(self) -> None:
+        with self.assertRaisesRegex(ValueError, "does not match session length"):
+            self.analyze(corner_catalog=load_bundled_corner_catalog())
 
     def test_report_uses_stored_event_values_with_missing_throttle(self) -> None:
         result = self.analyze()

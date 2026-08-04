@@ -11,6 +11,18 @@ from statistics import fmean
 from typing import Sequence
 
 from f1_telemetry.capture_format import iter_capture, read_capture_header
+from f1_telemetry.corner_catalog import (
+    DEFAULT_CORNER_CATALOG,
+    CatalogSelection,
+    CornerAssociation,
+    CornerCatalog,
+    TrackDefinition,
+    associate_region,
+    disabled_catalog_selection,
+    format_corner_label,
+    load_corner_catalog,
+    select_catalog_track,
+)
 from f1_telemetry.decode import (
     SESSION_HISTORY_PACKET_ID,
     SESSION_PACKET_ID,
@@ -215,6 +227,7 @@ class LossRegion:
     matched_event_index: int | None
     unmatched_reference_event_indices: tuple[int, ...]
     unmatched_comparison_event_indices: tuple[int, ...]
+    corner_context: CornerAssociation | None
 
 
 @dataclass(frozen=True)
@@ -251,6 +264,7 @@ class AnalysisResult:
     session: PreparedSession
     reference_lap: int
     comparisons: tuple[LapComparison, ...]
+    catalog_selection: CatalogSelection
 
 
 def _validation(history: DecodedLapHistory) -> LapValidation:
@@ -536,6 +550,7 @@ def _loss_regions(
     unmatched_comparison_event_indices: tuple[int, ...],
     sector2_distance: float,
     sector3_distance: float,
+    track_definition: TrackDefinition | None,
 ) -> tuple[LossRegion, ...]:
     step = reference.distance[1] - reference.distance[0]
     bin_samples = max(1, round(config.loss_bin_size_m / step))
@@ -616,6 +631,15 @@ def _loss_regions(
                     comparison_events,
                     unmatched_comparison_event_indices,
                 ),
+                corner_context=(
+                    associate_region(
+                        track_definition,
+                        reference.distance[start],
+                        reference.distance[end],
+                    )
+                    if track_definition is not None
+                    else None
+                ),
             )
         )
     return tuple(sorted(regions, key=lambda region: region.time_loss_s, reverse=True))
@@ -631,6 +655,7 @@ def compare_laps(
     config: AnalysisConfig = DEFAULT_ANALYSIS_CONFIG,
     sector2_distance: float = float("inf"),
     sector3_distance: float = float("inf"),
+    track_definition: TrackDefinition | None = None,
 ) -> LapComparison:
     if reference.distance != comparison.distance:
         raise ValueError("laps must use the same distance grid")
@@ -679,6 +704,7 @@ def compare_laps(
             ),
             sector2_distance=sector2_distance,
             sector3_distance=sector3_distance,
+            track_definition=track_definition,
         ),
         reference_events=reference_events,
         comparison_events=comparison_events,
@@ -733,12 +759,22 @@ def analyze_capture(
     config: AnalysisConfig = DEFAULT_ANALYSIS_CONFIG,
     reference_lap: int | None = None,
     comparison_laps: Sequence[int] | None = None,
+    corner_catalog: CornerCatalog | None = DEFAULT_CORNER_CATALOG,
 ) -> AnalysisResult:
     """Return the complete deterministic analysis for one capture."""
     capture_path = Path(path)
     session = prepare_session(capture_path)
     if not session.laps:
         raise ValueError("capture has no eligible laps")
+    catalog_selection = (
+        disabled_catalog_selection()
+        if corner_catalog is None
+        else select_catalog_track(
+            corner_catalog,
+            session.track_id,
+            session.track_length,
+        )
+    )
 
     if reference_lap is None:
         reference_trace = min(
@@ -802,6 +838,7 @@ def analyze_capture(
             config=config,
             sector2_distance=session.sector2_distance,
             sector3_distance=session.sector3_distance,
+            track_definition=catalog_selection.track,
         )
         if abs(comparison_result.final_delta_error_s) > 1e-9:
             raise ValueError(
@@ -816,6 +853,7 @@ def analyze_capture(
         session=session,
         reference_lap=reference_trace.lap_number,
         comparisons=tuple(comparisons),
+        catalog_selection=catalog_selection,
     )
 
 
@@ -831,6 +869,10 @@ def print_analysis(result: AnalysisResult) -> None:
         f"Session {session.session_uid} | track_id={session.track_id} | "
         f"length={session.track_length} m"
     )
+    if result.catalog_selection.track is not None:
+        print(f"Corner catalog: {result.catalog_selection.track.display_name}")
+    else:
+        print(f"Corner catalog: {result.catalog_selection.status}")
     print("Lap eligibility:")
     for lap in session.validations:
         time_text = (
@@ -866,8 +908,18 @@ def print_analysis(result: AnalysisResult) -> None:
             f"{comparison.comparison_discarded_attempt_frames}"
         )
         for region in comparison.regions[:5]:
+            corner_label = (
+                format_corner_label(
+                    result.catalog_selection.track,
+                    region.corner_context,
+                )
+                if result.catalog_selection.track is not None
+                and region.corner_context is not None
+                else f"Sector {region.sector}"
+            )
             print(
-                f"    {region.start_distance:.0f}-{region.end_distance:.0f} m: "
+                f"    {corner_label} | "
+                f"{region.start_distance:.0f}-{region.end_distance:.0f} m: "
                 f"+{region.time_loss_s:.3f} s "
                 f"({'; '.join(region.evidence_labels)})"
             )
@@ -901,6 +953,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="new directory for the JSON, CSV, and SVG analysis bundle",
     )
+    catalog_group = parser.add_mutually_exclusive_group()
+    catalog_group.add_argument(
+        "--corner-catalog",
+        type=Path,
+        help="strict custom corner catalog replacing the bundled catalog",
+    )
+    catalog_group.add_argument(
+        "--no-corner-catalog",
+        action="store_true",
+        help="disable corner association for this analysis",
+    )
     return parser
 
 
@@ -908,11 +971,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     try:
         config = AnalysisConfig(distance_step_m=args.distance_step)
+        if args.no_corner_catalog:
+            corner_catalog = None
+        elif args.corner_catalog is not None:
+            corner_catalog = load_corner_catalog(args.corner_catalog)
+        else:
+            corner_catalog = DEFAULT_CORNER_CATALOG
         result = analyze_capture(
             args.capture,
             config=config,
             reference_lap=args.reference_lap,
             comparison_laps=args.comparison_laps,
+            corner_catalog=corner_catalog,
         )
         print_analysis(result)
         if args.output_dir is not None:
