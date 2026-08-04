@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "catalog_id": "f1-25-corners-v1",
+  "packet_format": 2025,
+  "game_year": 25,
+  "tracks": [
+    {
+      "track_id": 5,
+      "display_name": "Monaco",
+      "track_length_m": 3323,
+      "turns": [
+        {"turn_id": "monaco-t01", "number": 1, "display_name": "Sainte Dévote", "direction": "right", "entry_distance_m": 170.000, "apex_distance_m": 213.000, "exit_distance_m": 260.000},
+        {"turn_id": "monaco-t02", "number": 2, "display_name": "Beau Rivage", "direction": "left", "entry_distance_m": 450.000, "apex_distance_m": 496.000, "exit_distance_m": 560.000},
+        {"turn_id": "monaco-t03", "number": 3, "display_name": "Massenet", "direction": "left", "entry_distance_m": 730.000, "apex_distance_m": 786.000, "exit_distance_m": 850.000},
+        {"turn_id": "monaco-t04", "number": 4, "display_name": "Casino Square", "direction": "right", "entry_distance_m": 850.000, "apex_distance_m": 894.000, "exit_distance_m": 940.000},
+        {"turn_id": "monaco-t05", "number": 5, "display_name": "Mirabeau Haute", "direction": "right", "entry_distance_m": 1080.000, "apex_distance_m": 1143.000, "exit_distance_m": 1190.000},
+        {"turn_id": "monaco-t06", "number": 6, "display_name": "Fairmont Hairpin", "direction": "left", "entry_distance_m": 1230.000, "apex_distance_m": 1270.000, "exit_distance_m": 1300.000},
+        {"turn_id": "monaco-t07", "number": 7, "display_name": "Mirabeau Bas", "direction": "right", "entry_distance_m": 1300.000, "apex_distance_m": 1339.000, "exit_distance_m": 1375.000},
+        {"turn_id": "monaco-t08", "number": 8, "display_name": "Portier", "direction": "right", "entry_distance_m": 1410.000, "apex_distance_m": 1443.000, "exit_distance_m": 1510.000},
+        {"turn_id": "monaco-t09", "number": 9, "display_name": "Tunnel", "direction": "right", "entry_distance_m": 1680.000, "apex_distance_m": 1771.000, "exit_distance_m": 1870.000},
+        {"turn_id": "monaco-t10", "number": 10, "display_name": "Nouvelle Chicane Entry", "direction": "left", "entry_distance_m": 2050.000, "apex_distance_m": 2097.000, "exit_distance_m": 2115.000},
+        {"turn_id": "monaco-t11", "number": 11, "display_name": "Nouvelle Chicane Exit", "direction": "right", "entry_distance_m": 2115.000, "apex_distance_m": 2135.000, "exit_distance_m": 2170.000},
+        {"turn_id": "monaco-t12", "number": 12, "display_name": "Tabac", "direction": "left", "entry_distance_m": 2340.000, "apex_distance_m": 2385.000, "exit_distance_m": 2460.000},
+        {"turn_id": "monaco-t13", "number": 13, "display_name": "Swimming Pool Entry", "direction": "left", "entry_distance_m": 2490.000, "apex_distance_m": 2534.000, "exit_distance_m": 2560.000},
+        {"turn_id": "monaco-t14", "number": 14, "display_name": "Swimming Pool Entry Exit", "direction": "right", "entry_distance_m": 2560.000, "apex_distance_m": 2610.000, "exit_distance_m": 2615.000},
+        {"turn_id": "monaco-t15", "number": 15, "display_name": "Swimming Pool Exit Entry", "direction": "right", "entry_distance_m": 2660.000, "apex_distance_m": 2698.000, "exit_distance_m": 2720.000},
+        {"turn_id": "monaco-t16", "number": 16, "display_name": "Swimming Pool Exit", "direction": "left", "entry_distance_m": 2720.000, "apex_distance_m": 2743.000, "exit_distance_m": 2780.000},
+        {"turn_id": "monaco-t17", "number": 17, "display_name": "Unnamed Bend", "direction": "left", "entry_distance_m": 2800.000, "apex_distance_m": 2828.000, "exit_distance_m": 2870.000},
+        {"turn_id": "monaco-t18", "number": 18, "display_name": "La Rascasse", "direction": "right", "entry_distance_m": 2880.000, "apex_distance_m": 2935.000, "exit_distance_m": 2970.000},
+        {"turn_id": "monaco-t19", "number": 19, "display_name": "Antony Noghès", "direction": "right", "entry_distance_m": 2970.000, "apex_distance_m": 3024.000, "exit_distance_m": 3070.000}
+      ],
+      "complexes": [
+        {"complex_id": "monaco-nouvelle-chicane", "display_name": "Nouvelle Chicane", "turn_ids": ["monaco-t10", "monaco-t11"]},
+        {"complex_id": "monaco-swimming-pool", "display_name": "Swimming Pool", "turn_ids": ["monaco-t13", "monaco-t14", "monaco-t15", "monaco-t16"]}
+      ]
+    },
+    {
+      "track_id": 10,
+      "display_name": "Spa-Francorchamps",
+      "track_length_m": 7007,
+      "turns": [
+        {"turn_id": "spa-t01", "number": 1, "display_name": "La Source", "direction": "right", "entry_distance_m": 350.000, "apex_distance_m": 403.000, "exit_distance_m": 455.000},
+        {"turn_id": "spa-t02", "number": 2, "display_name": "Eau Rouge Entry", "direction": "left", "entry_distance_m": 970.000, "apex_distance_m": 1005.000, "exit_distance_m": 1070.000},
+        {"turn_id": "spa-t03", "number": 3, "display_name": "Raidillon", "direction": "right", "entry_distance_m": 1070.000, "apex_distance_m": 1144.000, "exit_distance_m": 1210.000},
+        {"turn_id": "spa-t04", "number": 4, "display_name": "Raidillon Exit", "direction": "left", "entry_distance_m": 1210.000, "apex_distance_m": 1297.000, "exit_distance_m": 1360.000},
+        {"turn_id": "spa-t05", "number": 5, "display_name": "Les Combes Entry", "direction": "right", "entry_distance_m": 2390.000, "apex_distance_m": 2442.000, "exit_distance_m": 2478.000},
+        {"turn_id": "spa-t06", "number": 6, "display_name": "Les Combes Exit", "direction": "left", "entry_distance_m": 2478.000, "apex_distance_m": 2517.000, "exit_distance_m": 2550.000},
+        {"turn_id": "spa-t07", "number": 7, "display_name": "Malmedy", "direction": "right", "entry_distance_m": 2600.000, "apex_distance_m": 2669.000, "exit_distance_m": 2750.000},
+        {"turn_id": "spa-t08", "number": 8, "display_name": "Bruxelles", "direction": "right", "entry_distance_m": 3010.000, "apex_distance_m": 3086.000, "exit_distance_m": 3160.000},
+        {"turn_id": "spa-t09", "number": 9, "display_name": "Jacky Ickx", "direction": "left", "entry_distance_m": 3260.000, "apex_distance_m": 3313.000, "exit_distance_m": 3380.000},
+        {"turn_id": "spa-t10", "number": 10, "display_name": "Pouhon Entry", "direction": "left", "entry_distance_m": 3800.000, "apex_distance_m": 3869.000, "exit_distance_m": 3940.000},
+        {"turn_id": "spa-t11", "number": 11, "display_name": "Pouhon Exit", "direction": "left", "entry_distance_m": 3940.000, "apex_distance_m": 3985.000, "exit_distance_m": 4070.000},
+        {"turn_id": "spa-t12", "number": 12, "display_name": "Fagnes Entry", "direction": "right", "entry_distance_m": 4460.000, "apex_distance_m": 4527.000, "exit_distance_m": 4600.000},
+        {"turn_id": "spa-t13", "number": 13, "display_name": "Fagnes Exit", "direction": "left", "entry_distance_m": 4600.000, "apex_distance_m": 4692.000, "exit_distance_m": 4760.000},
+        {"turn_id": "spa-t14", "number": 14, "display_name": "Campus", "direction": "right", "entry_distance_m": 4900.000, "apex_distance_m": 4970.000, "exit_distance_m": 5030.000},
+        {"turn_id": "spa-t15", "number": 15, "display_name": "Curve Paul Frère", "direction": "right", "entry_distance_m": 5080.000, "apex_distance_m": 5162.000, "exit_distance_m": 5260.000},
+        {"turn_id": "spa-t16", "number": 16, "display_name": "Blanchimont Entry", "direction": "left", "entry_distance_m": 5750.000, "apex_distance_m": 5819.000, "exit_distance_m": 5900.000},
+        {"turn_id": "spa-t17", "number": 17, "display_name": "Blanchimont Exit", "direction": "left", "entry_distance_m": 6120.000, "apex_distance_m": 6210.000, "exit_distance_m": 6300.000},
+        {"turn_id": "spa-t18", "number": 18, "display_name": "Bus Stop Entry", "direction": "right", "entry_distance_m": 6720.000, "apex_distance_m": 6764.000, "exit_distance_m": 6787.000},
+        {"turn_id": "spa-t19", "number": 19, "display_name": "Bus Stop Exit", "direction": "left", "entry_distance_m": 6787.000, "apex_distance_m": 6812.000, "exit_distance_m": 6860.000}
+      ],
+      "complexes": [
+        {"complex_id": "spa-eau-rouge-raidillon", "display_name": "Eau Rouge/Raidillon", "turn_ids": ["spa-t02", "spa-t03", "spa-t04"]},
+        {"complex_id": "spa-les-combes", "display_name": "Les Combes", "turn_ids": ["spa-t05", "spa-t06"]},
+        {"complex_id": "spa-pouhon", "display_name": "Pouhon", "turn_ids": ["spa-t10", "spa-t11"]},
+        {"complex_id": "spa-fagnes", "display_name": "Fagnes", "turn_ids": ["spa-t12", "spa-t13"]},
+        {"complex_id": "spa-campus-paul-frere", "display_name": "Campus/Curve Paul Frère", "turn_ids": ["spa-t14", "spa-t15"]},
+        {"complex_id": "spa-blanchimont", "display_name": "Blanchimont", "turn_ids": ["spa-t16", "spa-t17"]},
+        {"complex_id": "spa-bus-stop", "display_name": "Bus Stop", "turn_ids": ["spa-t18", "spa-t19"]}
+      ]
+    },
+    {
+      "track_id": 11,
+      "display_name": "Monza",
+      "track_length_m": 5798,
+      "turns": [
+        {"turn_id": "monza-t01", "number": 1, "display_name": "Variante del Rettifilo Entry", "direction": "right", "entry_distance_m": 900.000, "apex_distance_m": 937.000, "exit_distance_m": 955.000},
+        {"turn_id": "monza-t02", "number": 2, "display_name": "Variante del Rettifilo Exit", "direction": "left", "entry_distance_m": 955.000, "apex_distance_m": 975.000, "exit_distance_m": 1020.000},
+        {"turn_id": "monza-t03", "number": 3, "display_name": "Curva Biassono", "direction": "right", "entry_distance_m": 1280.000, "apex_distance_m": 1310.000, "exit_distance_m": 1740.000},
+        {"turn_id": "monza-t04", "number": 4, "display_name": "Variante della Roggia Entry", "direction": "left", "entry_distance_m": 2110.000, "apex_distance_m": 2153.000, "exit_distance_m": 2174.000},
+        {"turn_id": "monza-t05", "number": 5, "display_name": "Variante della Roggia Exit", "direction": "right", "entry_distance_m": 2174.000, "apex_distance_m": 2198.000, "exit_distance_m": 2240.000},
+        {"turn_id": "monza-t06", "number": 6, "display_name": "Prima Curva di Lesmo", "direction": "right", "entry_distance_m": 2490.000, "apex_distance_m": 2595.000, "exit_distance_m": 2700.000},
+        {"turn_id": "monza-t07", "number": 7, "display_name": "Seconda Curva di Lesmo", "direction": "right", "entry_distance_m": 2820.000, "apex_distance_m": 2890.000, "exit_distance_m": 2960.000},
+        {"turn_id": "monza-t08", "number": 8, "display_name": "Variante Ascari Entry", "direction": "left", "entry_distance_m": 3910.000, "apex_distance_m": 3956.000, "exit_distance_m": 4020.000},
+        {"turn_id": "monza-t09", "number": 9, "display_name": "Variante Ascari Middle", "direction": "right", "entry_distance_m": 4020.000, "apex_distance_m": 4069.000, "exit_distance_m": 4100.000},
+        {"turn_id": "monza-t10", "number": 10, "display_name": "Variante Ascari Exit", "direction": "left", "entry_distance_m": 4100.000, "apex_distance_m": 4145.000, "exit_distance_m": 4220.000},
+        {"turn_id": "monza-t11", "number": 11, "display_name": "Curva Alboreto", "direction": "right", "entry_distance_m": 5080.000, "apex_distance_m": 5173.000, "exit_distance_m": 5480.000}
+      ],
+      "complexes": [
+        {"complex_id": "monza-rettifilo", "display_name": "Variante del Rettifilo", "turn_ids": ["monza-t01", "monza-t02"]},
+        {"complex_id": "monza-roggia", "display_name": "Variante della Roggia", "turn_ids": ["monza-t04", "monza-t05"]},
+        {"complex_id": "monza-ascari", "display_name": "Variante Ascari", "turn_ids": ["monza-t08", "monza-t09", "monza-t10"]}
+      ]
+    }
+  ]
+}

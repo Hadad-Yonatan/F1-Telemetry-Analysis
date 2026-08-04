@@ -23,3 +23,6 @@ f1-telemetry-validate = "f1_telemetry.validation:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+f1_telemetry = ["data/*.json"]

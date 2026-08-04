@@ -10,6 +10,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
+from f1_telemetry.corner_catalog import CatalogSelection, TrackDefinition
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
 from f1_telemetry.lap_analysis import (
     AnalysisResult,
@@ -119,6 +120,17 @@ def _region_document(region: LossRegion) -> dict[str, object]:
         "unmatched_comparison_event_indices": list(
             region.unmatched_comparison_event_indices
         ),
+        "corner_context": (
+            {
+                "primary_turn_id": region.corner_context.primary_turn_id,
+                "overlapping_turn_ids": list(
+                    region.corner_context.overlapping_turn_ids
+                ),
+                "complex_ids": list(region.corner_context.complex_ids),
+            }
+            if region.corner_context is not None
+            else None
+        ),
         "evidence": {
             "labels": list(region.evidence_labels),
             "reference_min_speed_kph": _round_continuous(
@@ -149,6 +161,51 @@ def _region_document(region: LossRegion) -> dict[str, object]:
                 region.mean_brake_difference
             ),
         },
+    }
+
+
+def _track_document(track: TrackDefinition) -> dict[str, object]:
+    return {
+        "track_id": track.track_id,
+        "display_name": track.display_name,
+        "track_length_m": track.track_length_m,
+        "turns": [
+            {
+                "turn_id": turn.turn_id,
+                "number": turn.number,
+                "display_name": turn.display_name,
+                "direction": turn.direction,
+                "entry_distance_m": _round_distance(turn.entry_distance_m),
+                "apex_distance_m": _round_distance(turn.apex_distance_m),
+                "exit_distance_m": _round_distance(turn.exit_distance_m),
+            }
+            for turn in track.turns
+        ],
+        "complexes": [
+            {
+                "complex_id": complex_value.complex_id,
+                "display_name": complex_value.display_name,
+                "turn_ids": list(complex_value.turn_ids),
+            }
+            for complex_value in track.complexes
+        ],
+    }
+
+
+def _catalog_document(selection: CatalogSelection) -> dict[str, object]:
+    metadata = selection.metadata
+    return {
+        "status": selection.status,
+        "schema_version": metadata.schema_version if metadata is not None else None,
+        "catalog_id": metadata.catalog_id if metadata is not None else None,
+        "packet_format": metadata.packet_format if metadata is not None else None,
+        "game_year": metadata.game_year if metadata is not None else None,
+        "sha256": metadata.sha256 if metadata is not None else None,
+        "selected_track": (
+            _track_document(selection.track)
+            if selection.track is not None
+            else None
+        ),
     }
 
 
@@ -205,6 +262,7 @@ def _analysis_document(result: AnalysisResult) -> dict[str, object]:
     return {
         "schema_version": config.schema_version,
         "capture": asdict(result.capture),
+        "corner_catalog": _catalog_document(result.catalog_selection),
         "algorithm": {
             "version": config.algorithm_version,
             "distance_step_m": _round_distance(config.distance_step_m),
