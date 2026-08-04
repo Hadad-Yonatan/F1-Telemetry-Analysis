@@ -12,6 +12,11 @@ dependencies = [
     "f1-packets==2025.1.1",
 ]
 
+[project.optional-dependencies]
+browser-test = [
+    "playwright==1.61.0",
+]
+
 [project.scripts]
 f1-telemetry-probe = "f1_telemetry.probe:main"
 f1-telemetry-capture = "f1_telemetry.capture:main"
@@ -25,4 +30,10 @@ f1-telemetry-validate = "f1_telemetry.validation:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-f1_telemetry = ["data/*.json"]
+f1_telemetry = [
+    "data/*.json",
+    "html_assets/*.css",
+    "html_assets/*.js",
+    "html_assets/*.txt",
+    "html_assets/*.woff2",
+]

@@ -246,7 +246,7 @@ class CatalogParsingTests(unittest.TestCase):
         )
         self.assertTrue(packaged.is_file())
         self.assertIn(
-            'f1_telemetry = ["data/*.json"]',
+            '"data/*.json"',
             (repository / "pyproject.toml").read_text(encoding="utf-8"),
         )
 

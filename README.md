@@ -79,9 +79,13 @@ PYTHONPATH=src python -m f1_telemetry.lap_analysis \
 
 The bundle contains canonical session and comparison metadata in
 `analysis.json`, a complete distance-aligned CSV trace for each comparison,
-a matching six-panel SVG, and a deterministic `report.md` covering every loss
-region. The report includes sector and distance context, aggregate trace
-evidence, matched driving-event measurements, and explicit unmatched events.
+a matching six-panel SVG, a deterministic `report.md`, and a self-contained
+interactive `report.html`. Open the HTML file directly from disk; its fonts,
+styles, scripts, and rounded trace data are embedded and it makes no network
+requests. Six synchronized panels support comparison selection, cursor
+inspection, channel visibility, region navigation, and distance zoom. Both
+reports cover every loss region, including aggregate trace evidence, matched
+driving-event measurements, and explicit unmatched events.
 Existing output directories are never overwritten. Use `--reference-lap` to
 replace the default fastest eligible reference and repeat `--comparison-lap`
 to select specific eligible laps.
