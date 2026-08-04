@@ -1,4 +1,4 @@
-"""Stable JSON, CSV, and SVG outputs for completed lap analyses."""
+"""Stable JSON, CSV, SVG, Markdown, and HTML analysis outputs."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Callable
 
 from f1_telemetry.corner_catalog import CatalogSelection, TrackDefinition
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
+from f1_telemetry.html_report import write_html_report
 from f1_telemetry.lap_analysis import (
     AnalysisResult,
     LapComparison,
@@ -23,6 +24,7 @@ from f1_telemetry.report import comparison_stem, write_markdown_report
 
 SvgWriter = Callable[[PreparedSession, LapComparison, Path], None]
 ReportWriter = Callable[[AnalysisResult, Path], None]
+HtmlWriter = Callable[[AnalysisResult, dict[str, object], Path], None]
 
 CSV_COLUMNS = (
     "distance_m",
@@ -254,7 +256,8 @@ def _comparison_document(comparison: LapComparison) -> dict[str, object]:
     }
 
 
-def _analysis_document(result: AnalysisResult) -> dict[str, object]:
+def analysis_document(result: AnalysisResult) -> dict[str, object]:
+    """Return the canonical, deterministically rounded analysis document."""
     config = result.config
     discarded_by_lap = {
         lap.lap_number: lap.discarded_attempt_frames for lap in result.session.laps
@@ -386,10 +389,10 @@ def _analysis_document(result: AnalysisResult) -> dict[str, object]:
     }
 
 
-def _write_json(result: AnalysisResult, output: Path) -> None:
+def _write_json(document: dict[str, object], output: Path) -> None:
     with output.open("x", encoding="utf-8", newline="\n") as file:
         json.dump(
-            _analysis_document(result),
+            document,
             file,
             allow_nan=False,
             indent=2,
@@ -431,6 +434,7 @@ def write_analysis_bundle(
     *,
     svg_writer: SvgWriter = write_comparison_svg,
     report_writer: ReportWriter = write_markdown_report,
+    html_writer: HtmlWriter = write_html_report,
 ) -> None:
     """Atomically create a complete analysis bundle without overwriting."""
     output = Path(output_dir)
@@ -444,8 +448,10 @@ def write_analysis_bundle(
         )
     )
     try:
-        _write_json(result, temporary / "analysis.json")
+        document = analysis_document(result)
+        _write_json(document, temporary / "analysis.json")
         report_writer(result, temporary / "report.md")
+        html_writer(result, document, temporary / "report.html")
         for comparison in result.comparisons:
             stem = comparison_stem(comparison)
             _write_comparison_csv(comparison, temporary / f"{stem}.csv")

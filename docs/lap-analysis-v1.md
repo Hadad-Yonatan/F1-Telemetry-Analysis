@@ -145,6 +145,9 @@ With `--output-dir`, the analyzer creates a new directory containing:
 - `report.md`, with lap eligibility, every ranked loss region, sector and
   distance and corner context, factual event observations, and relative links
   to traces and plots;
+- `report.html`, a self-contained interactive view of the same completed
+  result with comparison selection, synchronized speed/delta/input/gear
+  panels, cursor values, channel controls, and region-based zoom;
 - one `lap-XX-vs-YY.csv` per comparison, containing the complete aligned time,
   delta, speed, throttle, brake, steering, and gear traces; and
 - one matching `lap-XX-vs-YY.svg` six-panel plot per comparison.
@@ -156,6 +159,16 @@ telemetry values to six decimal places, and integer fields remain integers.
 JSON keys are sorted, non-finite numbers are rejected, and no execution time is
 included, so repeated analysis of the same capture and configuration produces
 byte-identical files.
+
+The HTML renderer receives the same canonical analysis document written to
+`analysis.json`; presentation code does not derive sectors, regions, events,
+evidence, or telemetry deltas. CSS, JavaScript, the Atkinson Hyperlegible
+regular and bold fonts, and the rounded traces are embedded in the file. A
+restrictive content-security policy prevents connections and external
+resources, so the report opens directly with a local-file URL. The bundled
+font files are redistributed under the SIL Open Font License 1.1, included
+with the package as `AtkinsonHyperlegible-OFL.txt`. The typeface is published
+by the [Braille Institute](https://www.brailleinstitute.org/freefont/).
 
 ## Cross-circuit validation
 

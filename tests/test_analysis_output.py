@@ -2,13 +2,19 @@ import csv
 import contextlib
 import io
 import json
+import re
 import tempfile
 import unittest
 from dataclasses import replace
+from importlib import resources
 from pathlib import Path
 from unittest.mock import patch
 
-from f1_telemetry.analysis_output import CSV_COLUMNS, write_analysis_bundle
+from f1_telemetry.analysis_output import (
+    CSV_COLUMNS,
+    analysis_document,
+    write_analysis_bundle,
+)
 from f1_telemetry.capture_format import CaptureWriter
 from f1_telemetry.corner_catalog import (
     CatalogMetadata,
@@ -33,6 +39,17 @@ from f1_telemetry.lap_analysis import (
 )
 from f1_telemetry.normalize import NormalizedSample
 from f1_telemetry.report import render_markdown_report
+
+
+def html_payload(rendered: str) -> dict[str, object]:
+    match = re.search(
+        r'<script id="report-data" type="application/json">(.*?)</script>',
+        rendered,
+        re.DOTALL,
+    )
+    if match is None:
+        raise AssertionError("report payload not found")
+    return json.loads(match.group(1))
 
 
 def make_sample(
@@ -268,6 +285,7 @@ class AnalysisSelectionTests(unittest.TestCase):
 
         expected_names = {
             "analysis.json",
+            "report.html",
             "report.md",
             "lap-03-vs-01.csv",
             "lap-03-vs-01.svg",
@@ -280,6 +298,7 @@ class AnalysisSelectionTests(unittest.TestCase):
             self.assertEqual((first / name).read_bytes(), (second / name).read_bytes())
 
         document = json.loads((first / "analysis.json").read_text(encoding="utf-8"))
+        self.assertEqual(document, analysis_document(result))
         self.assertEqual(document["schema_version"], 1)
         self.assertEqual(document["algorithm"]["version"], "1.1.0")
         self.assertEqual(document["corner_catalog"]["status"], "disabled")
@@ -332,8 +351,132 @@ class AnalysisSelectionTests(unittest.TestCase):
             sum(len(comparison.regions) for comparison in result.comparisons),
         )
         self.assertTrue((first / "report.md").read_bytes().endswith(b"\n"))
+        rendered_html = (first / "report.html").read_text(encoding="utf-8")
+        payload = html_payload(rendered_html)
+        self.assertEqual(payload["report_version"], 1)
+        self.assertEqual(payload["analysis"], document)
+        self.assertEqual(payload["presentation"]["initial_comparison_lap"], 1)
+        self.assertEqual(payload["presentation"]["session_uid_label"], "123")
+        self.assertTrue((first / "report.html").read_bytes().endswith(b"\n"))
         with self.assertRaisesRegex(FileExistsError, "already exists"):
             write_analysis_bundle(result, first)
+
+    def test_html_payload_is_rounded_deduplicated_and_safely_embedded(self) -> None:
+        result = self.analyze()
+        hostile = replace(
+            result,
+            capture=replace(
+                result.capture,
+                basename='session</script><b title="x">\u2028&.f1cap',
+            ),
+        )
+        output = Path(self.temporary.name) / "html"
+        write_analysis_bundle(hostile, output)
+
+        rendered = (output / "report.html").read_text(encoding="utf-8")
+        payload = html_payload(rendered)
+        traces = payload["traces"]
+        self.assertEqual(payload["analysis"], analysis_document(hostile))
+        self.assertEqual(payload["presentation"]["initial_comparison_lap"], 1)
+        self.assertEqual(traces["distance_m"], list(range(101)))
+        self.assertNotIn("distance_m", traces["reference"])
+        self.assertTrue(
+            all("distance_m" not in trace for trace in traces["comparisons"])
+        )
+        self.assertTrue(
+            all(
+                isinstance(gear, int)
+                for trace in [traces["reference"], *traces["comparisons"]]
+                for gear in trace["gear"]
+            )
+        )
+        self.assertNotIn("</script><b", rendered)
+        self.assertNotIn("\u2028", rendered)
+        self.assertIn("\\u003c/script\\u003e", rendered)
+        self.assertNotRegex(rendered, r"https?://")
+        for forbidden in (
+            "fetch(",
+            "XMLHttpRequest",
+            "WebSocket",
+            "EventSource",
+        ):
+            self.assertNotIn(forbidden, rendered)
+
+    def test_html_initial_comparison_tie_breaks_by_lower_lap(self) -> None:
+        result = self.analyze()
+        tied = replace(
+            result,
+            comparisons=tuple(
+                replace(comparison, official_delta_s=0.5)
+                for comparison in reversed(result.comparisons)
+            ),
+        )
+        output = Path(self.temporary.name) / "tie"
+        write_analysis_bundle(tied, output)
+        payload = html_payload((output / "report.html").read_text(encoding="utf-8"))
+        self.assertEqual(payload["presentation"]["initial_comparison_lap"], 1)
+
+    def test_html_supports_no_regions_and_no_events(self) -> None:
+        result = self.analyze()
+        empty = replace(
+            result,
+            comparisons=tuple(
+                replace(
+                    comparison,
+                    regions=(),
+                    reference_events=(),
+                    comparison_events=(),
+                    event_matches=(),
+                    unmatched_reference_event_indices=(),
+                    unmatched_comparison_event_indices=(),
+                )
+                for comparison in result.comparisons
+            ),
+        )
+        output = Path(self.temporary.name) / "empty"
+        write_analysis_bundle(empty, output)
+        payload = html_payload((output / "report.html").read_text(encoding="utf-8"))
+        self.assertTrue(
+            all(
+                not presentation["region_labels"]
+                for presentation in payload["presentation"]["comparisons"]
+            )
+        )
+        self.assertTrue(
+            all(
+                not comparison["loss_regions"]
+                and not comparison["driving_events"]["matches"]
+                for comparison in payload["analysis"]["comparisons"]
+            )
+        )
+
+    def test_html_uses_python_labels_and_relative_comparison_links(self) -> None:
+        result = self.analyze(corner_catalog=matching_catalog())
+        output = Path(self.temporary.name) / "catalog-html"
+        write_analysis_bundle(result, output)
+        payload = html_payload((output / "report.html").read_text(encoding="utf-8"))
+
+        first = payload["presentation"]["comparisons"][0]
+        self.assertEqual(first["region_labels"], ["Test Chicane (T1-T2)"])
+        self.assertEqual(
+            first["artifact_links"],
+            {"csv": "lap-03-vs-01.csv", "svg": "lap-03-vs-01.svg"},
+        )
+        self.assertEqual(
+            len(first["region_labels"]),
+            len(payload["analysis"]["comparisons"][0]["loss_regions"]),
+        )
+
+    def test_html_assets_are_packaged_resources(self) -> None:
+        asset_root = resources.files("f1_telemetry").joinpath("html_assets")
+        for name in (
+            "report.css",
+            "report.js",
+            "AtkinsonHyperlegible-Regular.woff2",
+            "AtkinsonHyperlegible-Bold.woff2",
+            "AtkinsonHyperlegible-OFL.txt",
+        ):
+            self.assertGreater(len(asset_root.joinpath(name).read_bytes()), 0)
 
     def test_catalog_context_is_shared_by_json_markdown_and_console(self) -> None:
         result = self.analyze(corner_catalog=matching_catalog())
@@ -433,6 +576,19 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.assertIn("sustained full throttle not detected", report)
         self.assertIn("coast distance 0.000 m", report)
 
+        output = Path(self.temporary.name) / "event-html"
+        write_analysis_bundle(enriched_result, output)
+        payload = html_payload((output / "report.html").read_text(encoding="utf-8"))
+        event_document = payload["analysis"]["comparisons"][0]["driving_events"]
+        self.assertIsNone(
+            event_document["reference"][0]["throttle_reapplication_distance_m"]
+        )
+        self.assertEqual(event_document["reference"][0]["coast_distance_m"], 0)
+        self.assertEqual(
+            event_document["matches"][0]["evidence_labels"],
+            ["braked later", "lower minimum speed"],
+        )
+
     def test_output_failure_leaves_no_bundle_or_temporary_directory(self) -> None:
         result = self.analyze()
         output = Path(self.temporary.name) / "failed"
@@ -468,6 +624,28 @@ class AnalysisSelectionTests(unittest.TestCase):
         self.assertFalse(report_output.exists())
         self.assertEqual(
             list(Path(self.temporary.name).glob(".failed-report.tmp-*")),
+            [],
+        )
+
+        html_output = Path(self.temporary.name) / "failed-html"
+
+        def fail_html(
+            _result: object,
+            _document: dict[str, object],
+            _output: Path,
+        ) -> None:
+            raise RuntimeError("injected HTML failure")
+
+        with self.assertRaisesRegex(RuntimeError, "injected HTML failure"):
+            write_analysis_bundle(
+                result,
+                html_output,
+                html_writer=fail_html,
+            )
+
+        self.assertFalse(html_output.exists())
+        self.assertEqual(
+            list(Path(self.temporary.name).glob(".failed-html.tmp-*")),
             [],
         )
 
