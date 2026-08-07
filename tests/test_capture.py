@@ -1,7 +1,10 @@
+import io
 import struct
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from f1_telemetry.capture_format import (
     CAPTURE_MAGIC,
@@ -13,6 +16,8 @@ from f1_telemetry.capture_format import (
     iter_capture,
     read_capture_header,
 )
+from f1_telemetry.capture import run_capture
+from f1_telemetry.probe import ConnectionTestResult, ProbeStats
 from f1_telemetry.replay import replay_capture
 
 
@@ -23,6 +28,31 @@ def make_packet(
     suffix: bytes = b"",
 ) -> bytes:
     return struct.pack("<HBBBBB", packet_format, 25, 1, 0, 1, packet_id) + suffix
+
+
+class FakeCaptureSocket:
+    def __init__(self, actions: list[object]) -> None:
+        self.actions = list(actions)
+        self.timeout: float | None = None
+
+    def __enter__(self) -> "FakeCaptureSocket":
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        pass
+
+    def gettimeout(self) -> float | None:
+        return self.timeout
+
+    def settimeout(self, value: float | None) -> None:
+        self.timeout = value
+
+    def recvfrom(self, _size: int) -> tuple[bytes, tuple[str, int]]:
+        action = self.actions.pop(0)
+        if isinstance(action, BaseException):
+            raise action
+        assert isinstance(action, tuple)
+        return action
 
 
 class CaptureFormatTests(unittest.TestCase):
@@ -147,6 +177,95 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(summary.format_counts, {(2025, 25): 3, (2024, 25): 1})
 
 
+class CaptureConnectionGuardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.path = Path(self.temp_dir.name) / "guarded.f1cap"
+        self.sender = ("192.0.2.10", 50000)
+
+    def test_success_preserves_preflight_and_subsequent_datagrams_once(self) -> None:
+        payloads = [make_packet(2), make_packet(6), make_packet(0)]
+        udp_socket = FakeCaptureSocket(
+            [
+                (payloads[0], self.sender),
+                (payloads[1], self.sender),
+                (payloads[2], self.sender),
+                KeyboardInterrupt(),
+            ]
+        )
+
+        with (
+            patch("f1_telemetry.capture.bind_udp_socket", return_value=udp_socket),
+            patch("f1_telemetry.capture.time.time_ns", return_value=123),
+            redirect_stdout(io.StringIO()),
+        ):
+            stats = run_capture(self.path, connection_timeout=15)
+
+        records = list(iter_capture(self.path))
+        self.assertEqual([record.payload for record in records], payloads)
+        self.assertEqual(stats.packet_counts, {0: 1, 2: 1, 6: 1})
+        with self.path.open("rb") as capture_file:
+            self.assertEqual(read_capture_header(capture_file).created_unix_ns, 123)
+
+    def test_timeout_and_interruption_leave_no_capture(self) -> None:
+        for status, exit_code in (("timed_out", 1), ("interrupted", 130)):
+            with self.subTest(status=status):
+                result = ConnectionTestResult(  # type: ignore[arg-type]
+                    status=status,
+                    stats=ProbeStats(),
+                )
+                with (
+                    patch(
+                        "f1_telemetry.capture.bind_udp_socket",
+                        return_value=FakeCaptureSocket([]),
+                    ),
+                    patch(
+                        "f1_telemetry.capture.wait_for_connection",
+                        return_value=result,
+                    ),
+                    redirect_stdout(io.StringIO()),
+                ):
+                    with self.assertRaises(SystemExit) as raised:
+                        run_capture(self.path, connection_timeout=15)
+                self.assertEqual(raised.exception.code, exit_code)
+                self.assertFalse(self.path.exists())
+
+    def test_zero_timeout_preserves_previous_immediate_recording_behavior(self) -> None:
+        payload = make_packet(6)
+        udp_socket = FakeCaptureSocket(
+            [(payload, self.sender), KeyboardInterrupt()]
+        )
+
+        with (
+            patch("f1_telemetry.capture.bind_udp_socket", return_value=udp_socket),
+            patch("f1_telemetry.capture.wait_for_connection") as connection_test,
+            redirect_stdout(io.StringIO()),
+        ):
+            run_capture(self.path, connection_timeout=0)
+
+        connection_test.assert_not_called()
+        self.assertEqual(
+            [record.payload for record in iter_capture(self.path)], [payload]
+        )
+
+    def test_existing_destination_is_refused_before_binding(self) -> None:
+        self.path.write_bytes(b"existing")
+        with patch("f1_telemetry.capture.bind_udp_socket") as bind:
+            with self.assertRaises(FileExistsError):
+                run_capture(self.path)
+        bind.assert_not_called()
+        self.assertEqual(self.path.read_bytes(), b"existing")
+
+    def test_bind_failure_leaves_no_capture(self) -> None:
+        with patch(
+            "f1_telemetry.capture.bind_udp_socket",
+            side_effect=SystemExit("cannot bind"),
+        ):
+            with self.assertRaises(SystemExit):
+                run_capture(self.path)
+        self.assertFalse(self.path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
-
