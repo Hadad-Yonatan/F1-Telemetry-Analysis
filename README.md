@@ -10,12 +10,20 @@ Mac. Close any other telemetry receiver first, then run:
 
 ```bash
 source .venv/bin/activate
-python src/f1_telemetry/probe.py
+PYTHONPATH=src python -m f1_telemetry.probe
 ```
 
-Drive for 15–30 seconds and stop the probe with Control+C. The final report
-should show packet format `2025`, `Lap Data`, and `Car Telemetry`; `Motion` is
-also preferred. The probe only counts headers and does not save packet data.
+The car must already be on track. The probe waits for up to 15 seconds and
+exits successfully as soon as exact F1 25 `Lap Data` and `Car Telemetry`
+packets arrive; `Motion` is also preferred. It prints progress while no packets
+arrive and reports a configuration checklist on failure. Use `--timeout 0` to
+restore continuous listening until Control+C. The probe only counts headers
+and does not save packet data.
+
+If no data arrives, verify that UDP Telemetry is enabled in F1 25, the game's
+UDP IP Address is the Mac's current LAN IPv4 address, both devices are on the
+same non-guest network, the UDP port is `20777`, macOS firewall or VPN software
+allows the traffic, and no other telemetry receiver is using that port.
 
 ## Lossless capture
 
@@ -26,10 +34,14 @@ source .venv/bin/activate
 PYTHONPATH=src python -m f1_telemetry.capture
 ```
 
-Stop safely with Control+C. A specific new output path can be supplied as the
-first argument. Existing captures are never overwritten. The versioned F1CAP
-format stores timestamps and sender metadata alongside each unchanged UDP
-payload; its binary layout is documented in
+The recorder runs the same 15-second connection test before creating the
+output file. It buffers and then writes every preflight datagram after the test
+passes, so the check does not discard received packets. A failed or interrupted
+test leaves no capture file. Use `--connection-timeout 0` to disable the guard.
+Stop a successful recording safely with Control+C. A specific new output path
+can be supplied as the first argument. Existing captures are never overwritten.
+The versioned F1CAP format stores timestamps and sender metadata alongside each
+unchanged UDP payload; its binary layout is documented in
 [`docs/capture-format-v1.md`](docs/capture-format-v1.md).
 
 Verify a capture and inspect its packet counts offline:
