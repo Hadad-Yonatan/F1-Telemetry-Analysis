@@ -234,10 +234,39 @@ class CatalogParsingTests(unittest.TestCase):
 
     def test_bundled_catalog_contains_the_locked_tracks(self) -> None:
         catalog = load_bundled_corner_catalog()
+        self.assertEqual(catalog.metadata.catalog_id, "f1-25-corners-v2")
         self.assertEqual(
             [(track.track_id, track.track_length_m) for track in catalog.tracks],
-            [(5, 3323), (10, 7007), (11, 5798)],
+            [
+                (0, 5276),
+                (2, 5441),
+                (3, 5408),
+                (4, 4664),
+                (5, 3323),
+                (6, 4371),
+                (7, 5890),
+                (10, 7007),
+                (11, 5798),
+            ],
         )
+
+    def test_every_batch_one_track_selects_and_rejects_a_wrong_length(self) -> None:
+        catalog = load_bundled_corner_catalog()
+        for track_id, track_length in (
+            (0, 5276),
+            (2, 5441),
+            (3, 5408),
+            (4, 4664),
+            (6, 4371),
+            (7, 5890),
+        ):
+            with self.subTest(track_id=track_id, kind="match"):
+                selection = select_catalog_track(catalog, track_id, track_length)
+                self.assertEqual(selection.status, "matched")
+                self.assertEqual(selection.track.track_id, track_id)
+            with self.subTest(track_id=track_id, kind="wrong-length"):
+                with self.assertRaisesRegex(ValueError, "does not match"):
+                    select_catalog_track(catalog, track_id, track_length + 1)
 
     def test_package_contract_includes_the_bundled_catalog(self) -> None:
         repository = Path(__file__).resolve().parents[1]

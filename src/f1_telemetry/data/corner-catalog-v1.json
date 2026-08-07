@@ -1,9 +1,97 @@
 {
   "schema_version": 1,
-  "catalog_id": "f1-25-corners-v1",
+  "catalog_id": "f1-25-corners-v2",
   "packet_format": 2025,
   "game_year": 25,
   "tracks": [
+    {
+      "track_id": 0,
+      "display_name": "Albert Park",
+      "track_length_m": 5276,
+      "turns": [
+        {"turn_id": "melbourne-t01", "number": 1, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 323.000, "apex_distance_m": 398.000, "exit_distance_m": 419.000},
+        {"turn_id": "melbourne-t02", "number": 2, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 435.000, "apex_distance_m": 473.000, "exit_distance_m": 586.000},
+        {"turn_id": "melbourne-t03", "number": 3, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1066.000, "apex_distance_m": 1113.000, "exit_distance_m": 1161.000},
+        {"turn_id": "melbourne-t04", "number": 4, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1191.000, "apex_distance_m": 1249.000, "exit_distance_m": 1303.000},
+        {"turn_id": "melbourne-t05", "number": 5, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1402.000, "apex_distance_m": 1464.000, "exit_distance_m": 1524.000},
+        {"turn_id": "melbourne-t06", "number": 6, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1840.000, "apex_distance_m": 1908.000, "exit_distance_m": 1947.000},
+        {"turn_id": "melbourne-t07", "number": 7, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1947.000, "apex_distance_m": 1983.000, "exit_distance_m": 2026.000},
+        {"turn_id": "melbourne-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2083.000, "apex_distance_m": 2183.000, "exit_distance_m": 2574.000},
+        {"turn_id": "melbourne-t09", "number": 9, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3269.000, "apex_distance_m": 3310.000, "exit_distance_m": 3369.000},
+        {"turn_id": "melbourne-t10", "number": 10, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3392.000, "apex_distance_m": 3434.000, "exit_distance_m": 3502.000},
+        {"turn_id": "melbourne-t11", "number": 11, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4120.000, "apex_distance_m": 4156.000, "exit_distance_m": 4181.000},
+        {"turn_id": "melbourne-t12", "number": 12, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4236.000, "apex_distance_m": 4278.000, "exit_distance_m": 4315.000},
+        {"turn_id": "melbourne-t13", "number": 13, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4345.000, "apex_distance_m": 4412.000, "exit_distance_m": 4488.000},
+        {"turn_id": "melbourne-t14", "number": 14, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4622.000, "apex_distance_m": 4663.000, "exit_distance_m": 4692.000}
+      ]
+    },
+    {
+      "track_id": 2,
+      "display_name": "Shanghai International Circuit",
+      "track_length_m": 5441,
+      "turns": [
+        {"turn_id": "shanghai-t01", "number": 1, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 475.000, "apex_distance_m": 567.000, "exit_distance_m": 595.000},
+        {"turn_id": "shanghai-t02", "number": 2, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 595.000, "apex_distance_m": 818.000, "exit_distance_m": 851.000},
+        {"turn_id": "shanghai-t03", "number": 3, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 851.000, "apex_distance_m": 878.000, "exit_distance_m": 979.000},
+        {"turn_id": "shanghai-t04", "number": 4, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 979.000, "apex_distance_m": 996.000, "exit_distance_m": 1088.000},
+        {"turn_id": "shanghai-t05", "number": 5, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1258.000, "apex_distance_m": 1336.000, "exit_distance_m": 1407.000},
+        {"turn_id": "shanghai-t06", "number": 6, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1556.000, "apex_distance_m": 1598.000, "exit_distance_m": 1626.000},
+        {"turn_id": "shanghai-t07", "number": 7, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1896.000, "apex_distance_m": 2120.000, "exit_distance_m": 2216.000},
+        {"turn_id": "shanghai-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2250.000, "apex_distance_m": 2360.000, "exit_distance_m": 2456.000},
+        {"turn_id": "shanghai-t09", "number": 9, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2496.000, "apex_distance_m": 2550.000, "exit_distance_m": 2637.000},
+        {"turn_id": "shanghai-t10", "number": 10, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2637.000, "apex_distance_m": 2672.000, "exit_distance_m": 2733.000},
+        {"turn_id": "shanghai-t11", "number": 11, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3106.000, "apex_distance_m": 3147.000, "exit_distance_m": 3169.000},
+        {"turn_id": "shanghai-t12", "number": 12, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3185.000, "apex_distance_m": 3224.000, "exit_distance_m": 3273.000},
+        {"turn_id": "shanghai-t13", "number": 13, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3273.000, "apex_distance_m": 3387.000, "exit_distance_m": 3568.000},
+        {"turn_id": "shanghai-t14", "number": 14, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4768.000, "apex_distance_m": 4807.000, "exit_distance_m": 4825.000},
+        {"turn_id": "shanghai-t15", "number": 15, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4846.000, "apex_distance_m": 4853.000, "exit_distance_m": 4862.000},
+        {"turn_id": "shanghai-t16", "number": 16, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 5122.000, "apex_distance_m": 5172.000, "exit_distance_m": 5213.000}
+      ]
+    },
+    {
+      "track_id": 3,
+      "display_name": "Bahrain International Circuit",
+      "track_length_m": 5408,
+      "turns": [
+        {"turn_id": "sakhir-t01", "number": 1, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 705.000, "apex_distance_m": 741.000, "exit_distance_m": 771.000},
+        {"turn_id": "sakhir-t02", "number": 2, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 798.000, "apex_distance_m": 846.000, "exit_distance_m": 869.000},
+        {"turn_id": "sakhir-t03", "number": 3, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 920.000, "apex_distance_m": 958.000, "exit_distance_m": 1025.000},
+        {"turn_id": "sakhir-t04", "number": 4, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1483.000, "apex_distance_m": 1561.000, "exit_distance_m": 1597.000},
+        {"turn_id": "sakhir-t05", "number": 5, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1654.000, "apex_distance_m": 1737.000, "exit_distance_m": 1822.000},
+        {"turn_id": "sakhir-t06", "number": 6, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1860.000, "apex_distance_m": 1947.000, "exit_distance_m": 1982.000},
+        {"turn_id": "sakhir-t07", "number": 7, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1982.000, "apex_distance_m": 2022.000, "exit_distance_m": 2089.000},
+        {"turn_id": "sakhir-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2233.000, "apex_distance_m": 2284.000, "exit_distance_m": 2306.000},
+        {"turn_id": "sakhir-t09", "number": 9, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2543.000, "apex_distance_m": 2632.000, "exit_distance_m": 2650.000},
+        {"turn_id": "sakhir-t10", "number": 10, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2650.000, "apex_distance_m": 2759.000, "exit_distance_m": 2780.000},
+        {"turn_id": "sakhir-t11", "number": 11, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3421.000, "apex_distance_m": 3475.000, "exit_distance_m": 3574.000},
+        {"turn_id": "sakhir-t12", "number": 12, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3718.000, "apex_distance_m": 3880.000, "exit_distance_m": 3982.000},
+        {"turn_id": "sakhir-t13", "number": 13, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4056.000, "apex_distance_m": 4160.000, "exit_distance_m": 4193.000},
+        {"turn_id": "sakhir-t14", "number": 14, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4885.000, "apex_distance_m": 4944.000, "exit_distance_m": 4997.000},
+        {"turn_id": "sakhir-t15", "number": 15, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 5094.000, "apex_distance_m": 5200.000, "exit_distance_m": 5405.000}
+      ]
+    },
+    {
+      "track_id": 4,
+      "display_name": "Circuit de Barcelona-Catalunya",
+      "track_length_m": 4664,
+      "turns": [
+        {"turn_id": "catalunya-t01", "number": 1, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 790.000, "apex_distance_m": 847.000, "exit_distance_m": 877.000},
+        {"turn_id": "catalunya-t02", "number": 2, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 895.000, "apex_distance_m": 940.000, "exit_distance_m": 1019.000},
+        {"turn_id": "catalunya-t03", "number": 3, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1042.000, "apex_distance_m": 1110.000, "exit_distance_m": 1371.000},
+        {"turn_id": "catalunya-t04", "number": 4, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1653.000, "apex_distance_m": 1736.000, "exit_distance_m": 1891.000},
+        {"turn_id": "catalunya-t05", "number": 5, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2075.000, "apex_distance_m": 2128.000, "exit_distance_m": 2185.000},
+        {"turn_id": "catalunya-t06", "number": 6, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2282.000, "apex_distance_m": 2367.000, "exit_distance_m": 2452.000},
+        {"turn_id": "catalunya-t07", "number": 7, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2501.000, "apex_distance_m": 2536.000, "exit_distance_m": 2587.000},
+        {"turn_id": "catalunya-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2625.000, "apex_distance_m": 2638.000, "exit_distance_m": 2723.000},
+        {"turn_id": "catalunya-t09", "number": 9, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2819.000, "apex_distance_m": 2938.000, "exit_distance_m": 3005.000},
+        {"turn_id": "catalunya-t10", "number": 10, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3447.000, "apex_distance_m": 3499.000, "exit_distance_m": 3615.000},
+        {"turn_id": "catalunya-t11", "number": 11, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3615.000, "apex_distance_m": 3629.000, "exit_distance_m": 3673.000},
+        {"turn_id": "catalunya-t12", "number": 12, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3713.000, "apex_distance_m": 3798.000, "exit_distance_m": 3897.000},
+        {"turn_id": "catalunya-t13", "number": 13, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4004.000, "apex_distance_m": 4095.000, "exit_distance_m": 4154.000},
+        {"turn_id": "catalunya-t14", "number": 14, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4268.000, "apex_distance_m": 4382.000, "exit_distance_m": 4445.000}
+      ]
+    },
+
     {
       "track_id": 5,
       "display_name": "Monaco",
@@ -34,6 +122,57 @@
         {"complex_id": "monaco-swimming-pool", "display_name": "Swimming Pool", "turn_ids": ["monaco-t13", "monaco-t14", "monaco-t15", "monaco-t16"]}
       ]
     },
+    {
+      "track_id": 6,
+      "display_name": "Circuit Gilles-Villeneuve",
+      "track_length_m": 4371,
+      "turns": [
+        {"turn_id": "montreal-t01", "number": 1, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 217.000, "apex_distance_m": 260.000, "exit_distance_m": 289.000},
+        {"turn_id": "montreal-t02", "number": 2, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 305.000, "apex_distance_m": 350.000, "exit_distance_m": 388.000},
+        {"turn_id": "montreal-t03", "number": 3, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 683.000, "apex_distance_m": 737.000, "exit_distance_m": 763.000},
+        {"turn_id": "montreal-t04", "number": 4, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 777.000, "apex_distance_m": 798.000, "exit_distance_m": 859.000},
+        {"turn_id": "montreal-t05", "number": 5, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 951.000, "apex_distance_m": 1056.000, "exit_distance_m": 1124.000},
+        {"turn_id": "montreal-t06", "number": 6, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 1218.000, "apex_distance_m": 1269.000, "exit_distance_m": 1294.000},
+        {"turn_id": "montreal-t07", "number": 7, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1308.000, "apex_distance_m": 1318.000, "exit_distance_m": 1452.000},
+        {"turn_id": "montreal-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1986.000, "apex_distance_m": 2032.000, "exit_distance_m": 2053.000},
+        {"turn_id": "montreal-t09", "number": 9, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2053.000, "apex_distance_m": 2076.000, "exit_distance_m": 2150.000},
+        {"turn_id": "montreal-t10", "number": 10, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2672.000, "apex_distance_m": 2719.000, "exit_distance_m": 2748.000},
+        {"turn_id": "montreal-t11", "number": 11, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2782.000, "apex_distance_m": 2828.000, "exit_distance_m": 2896.000},
+        {"turn_id": "montreal-t12", "number": 12, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3087.000, "apex_distance_m": 3294.000, "exit_distance_m": 3355.000},
+        {"turn_id": "montreal-t13", "number": 13, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3877.000, "apex_distance_m": 3917.000, "exit_distance_m": 3937.000},
+        {"turn_id": "montreal-t14", "number": 14, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3937.000, "apex_distance_m": 3957.000, "exit_distance_m": 3997.000}
+      ]
+    },
+    {
+      "track_id": 7,
+      "display_name": "Silverstone",
+      "track_length_m": 5890,
+      "turns": [
+        {"turn_id": "silverstone-t01", "number": 1, "display_name": "Abbey", "direction": "right", "entry_distance_m": 339.000, "apex_distance_m": 375.000, "exit_distance_m": 502.000},
+        {"turn_id": "silverstone-t02", "number": 2, "display_name": "Farm", "direction": "left", "entry_distance_m": 560.000, "apex_distance_m": 628.000, "exit_distance_m": 732.000},
+        {"turn_id": "silverstone-t03", "number": 3, "display_name": "Village", "direction": "right", "entry_distance_m": 855.000, "apex_distance_m": 921.000, "exit_distance_m": 971.000},
+        {"turn_id": "silverstone-t04", "number": 4, "display_name": "The Loop", "direction": "left", "entry_distance_m": 1013.000, "apex_distance_m": 1057.000, "exit_distance_m": 1110.000},
+        {"turn_id": "silverstone-t05", "number": 5, "display_name": "Aintree", "direction": "left", "entry_distance_m": 1168.000, "apex_distance_m": 1268.000, "exit_distance_m": 1338.000},
+        {"turn_id": "silverstone-t06", "number": 6, "display_name": "Brooklands", "direction": "left", "entry_distance_m": 1899.000, "apex_distance_m": 2031.000, "exit_distance_m": 2080.000},
+        {"turn_id": "silverstone-t07", "number": 7, "display_name": "Luffield", "direction": "right", "entry_distance_m": 2107.000, "apex_distance_m": 2183.000, "exit_distance_m": 2304.000},
+        {"turn_id": "silverstone-t08", "number": 8, "display_name": "Woodcote", "direction": "right", "entry_distance_m": 2341.000, "apex_distance_m": 2500.000, "exit_distance_m": 2702.000},
+        {"turn_id": "silverstone-t09", "number": 9, "display_name": "Copse", "direction": "right", "entry_distance_m": 3011.000, "apex_distance_m": 3128.000, "exit_distance_m": 3201.000},
+        {"turn_id": "silverstone-t10", "number": 10, "display_name": "Maggotts", "direction": "left", "entry_distance_m": 3518.000, "apex_distance_m": 3602.000, "exit_distance_m": 3656.000},
+        {"turn_id": "silverstone-t11", "number": 11, "display_name": "Maggotts", "direction": "right", "entry_distance_m": 3685.000, "apex_distance_m": 3768.000, "exit_distance_m": 3804.000},
+        {"turn_id": "silverstone-t12", "number": 12, "display_name": "Becketts", "direction": "left", "entry_distance_m": 3832.000, "apex_distance_m": 3895.000, "exit_distance_m": 3938.000},
+        {"turn_id": "silverstone-t13", "number": 13, "display_name": "Becketts", "direction": "right", "entry_distance_m": 3975.000, "apex_distance_m": 4055.000, "exit_distance_m": 4106.000},
+        {"turn_id": "silverstone-t14", "number": 14, "display_name": "Chapel", "direction": "left", "entry_distance_m": 4155.000, "apex_distance_m": 4226.000, "exit_distance_m": 4297.000},
+        {"turn_id": "silverstone-t15", "number": 15, "display_name": "Stowe", "direction": "right", "entry_distance_m": 4967.000, "apex_distance_m": 5026.000, "exit_distance_m": 5195.000},
+        {"turn_id": "silverstone-t16", "number": 16, "display_name": "Vale", "direction": "left", "entry_distance_m": 5498.000, "apex_distance_m": 5535.000, "exit_distance_m": 5573.000},
+        {"turn_id": "silverstone-t17", "number": 17, "display_name": "Club", "direction": "right", "entry_distance_m": 5573.000, "apex_distance_m": 5613.000, "exit_distance_m": 5663.000},
+        {"turn_id": "silverstone-t18", "number": 18, "display_name": "Club", "direction": "right", "entry_distance_m": 5663.000, "apex_distance_m": 5774.000, "exit_distance_m": 5859.000}
+      ],
+      "complexes": [
+        {"complex_id": "silverstone-maggotts-becketts-chapel", "display_name": "Maggotts/Becketts/Chapel", "turn_ids": ["silverstone-t10", "silverstone-t11", "silverstone-t12", "silverstone-t13", "silverstone-t14"]},
+        {"complex_id": "silverstone-club", "display_name": "Club", "turn_ids": ["silverstone-t17", "silverstone-t18"]}
+      ]
+    },
+
     {
       "track_id": 10,
       "display_name": "Spa-Francorchamps",
