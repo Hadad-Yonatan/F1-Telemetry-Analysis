@@ -82,10 +82,11 @@ throttle-reapplication difference, or 2 km/h of minimum-speed difference.
 ## Corner catalog
 
 The bundled `corner-catalog-v1.json` is a strict, immutable F1 25 catalog for
-Monaco, Spa-Francorchamps, and Monza. Its root records catalog schema version
-1, catalog ID `f1-25-corners-v1`, packet format 2025, game year 25, and ordered
+Albert Park, Shanghai, Sakhir, Catalunya, Monaco, Montréal, Silverstone,
+Spa-Francorchamps, and Monza. Its root records catalog schema version 1,
+catalog ID `f1-25-corners-v2`, packet format 2025, game year 25, and ordered
 track definitions. The exact bundled bytes currently have SHA-256
-`8d402be1e5eb28290b09f40fb3122d8e1c5de2c948b974ef31ac10bf01a7cdf1`.
+`d1fefe01d7fd3b6ba0a0f1d9c7819b4d2386b1068457f372eb992c27d6726ac9`.
 Every saved analysis also records this digest, the selection status, and the
 complete selected track definition so a result never depends on a later
 installed catalog.
@@ -114,8 +115,8 @@ overlap retain the existing sector and metre-range description.
 
 ### Calibration methodology
 
-The three bundled definitions were calibrated against the locked dry Time
-Trial captures used by the cross-circuit validation suite. All eligible laps
+The bundled definitions were calibrated against locked dry Time Trial
+captures. All eligible laps
 were resampled at one metre. A local review trace used the per-metre median of
 steering, speed, braking ranges, minimum-speed locations, and sustained
 throttle reapplication. Only the calibration steering trace was smoothed, with
@@ -126,13 +127,16 @@ Official turn order, numbering, direction, and names were reviewed against the
 [Monza circuit guide](https://www.monzanet.it/en/circuit/),
 [FIA 2025 Monaco circuit map](https://www.fia.com/system/files/decision-document/2025_monaco_event_-_circuit_map_-_monaco_2025_revised.pdf),
 and [Formula 1 Monaco corner guide](https://www.formula1.com/en/latest/article/explained-how-every-monaco-corner-got-its-name.5ClYqWmfpeUpsRJA6mDNaX.5ClYqWmfpeUpsRJA6mDNaX).
+The six Batch 1 FIA maps, official naming sources, capture identities, and
+integrity evidence are recorded in
+[`corner-catalog-sources.md`](corner-catalog-sources.md).
 Apexes use reviewed direction-consistent steering peaks. Entry and exit use
 sustained steering transitions around the apex, with at least five continuous
 metres reviewed; adjacent chicane turns split at the steering direction change.
 All eligible laps were checked to avoid fitting the definition to the selected
 reference lap. Committed distances are rounded to three decimals, ordered,
-non-overlapping, and bounded by the locked in-game lengths: Monaco 3323 m, Spa
-7007 m, and Monza 5798 m.
+non-overlapping, and bounded by the locked in-game lengths recorded in the
+catalog and source ledger.
 
 ## Stable output bundle
 

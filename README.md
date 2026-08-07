@@ -102,15 +102,18 @@ Existing output directories are never overwritten. Use `--reference-lap` to
 replace the default fastest eligible reference and repeat `--comparison-lap`
 to select specific eligible laps.
 
-The analyzer uses the bundled, versioned F1 25 corner catalog for Monaco, Spa,
-and Monza. Matching regions are labeled with official turn numbers and named
-complexes in console, JSON, and Markdown output. Unknown tracks retain sector
-and metre-range labels. Supply `--corner-catalog PATH` to replace the bundled
+The analyzer uses the bundled, versioned F1 25 corner catalog for Albert Park,
+Shanghai, Sakhir, Catalunya, Monaco, Montréal, Silverstone, Spa, and Monza.
+Matching regions are labeled with official turn numbers and named complexes in
+console, JSON, and Markdown output. Unknown tracks retain sector and
+metre-range labels. Supply `--corner-catalog PATH` to replace the bundled
 catalog for one run, or `--no-corner-catalog` to disable corner association.
 A known track ID with a different Session-packet track length is rejected so a
 catalog cannot silently label the wrong layout. The strict catalog contract
 and calibration method are documented in
 [`docs/lap-analysis-v1.md`](docs/lap-analysis-v1.md#corner-catalog).
+Capture identities and official map/name sources are recorded in
+[`docs/corner-catalog-sources.md`](docs/corner-catalog-sources.md).
 
 Create a dependency-free SVG comparison against the fastest eligible lap:
 
