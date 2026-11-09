@@ -83,10 +83,11 @@ throttle-reapplication difference, or 2 km/h of minimum-speed difference.
 
 The bundled `corner-catalog-v1.json` is a strict, immutable F1 25 catalog for
 Albert Park, Shanghai, Sakhir, Catalunya, Monaco, Montréal, Silverstone,
-Spa-Francorchamps, and Monza. Its root records catalog schema version 1,
-catalog ID `f1-25-corners-v2`, packet format 2025, game year 25, and ordered
+Hungaroring, Spa-Francorchamps, Monza, Marina Bay, and Suzuka. Its root records
+catalog schema version 1, catalog ID `f1-25-corners-v3`, packet format 2025,
+game year 25, and ordered
 track definitions. The exact bundled bytes currently have SHA-256
-`d1fefe01d7fd3b6ba0a0f1d9c7819b4d2386b1068457f372eb992c27d6726ac9`.
+`76a5eeb9f27030ac1ab71256093a67683851056fc3f62a242a506f31a65a9eaa`.
 Every saved analysis also records this digest, the selection status, and the
 complete selected track definition so a result never depends on a later
 installed catalog.
@@ -127,7 +128,7 @@ Official turn order, numbering, direction, and names were reviewed against the
 [Monza circuit guide](https://www.monzanet.it/en/circuit/),
 [FIA 2025 Monaco circuit map](https://www.fia.com/system/files/decision-document/2025_monaco_event_-_circuit_map_-_monaco_2025_revised.pdf),
 and [Formula 1 Monaco corner guide](https://www.formula1.com/en/latest/article/explained-how-every-monaco-corner-got-its-name.5ClYqWmfpeUpsRJA6mDNaX.5ClYqWmfpeUpsRJA6mDNaX).
-The six Batch 1 FIA maps, official naming sources, capture identities, and
+The FIA maps, official naming sources, capture identities, and
 integrity evidence are recorded in
 [`corner-catalog-sources.md`](corner-catalog-sources.md).
 Apexes use reviewed direction-consistent steering peaks. Entry and exit use

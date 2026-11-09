@@ -234,7 +234,7 @@ class CatalogParsingTests(unittest.TestCase):
 
     def test_bundled_catalog_contains_the_locked_tracks(self) -> None:
         catalog = load_bundled_corner_catalog()
-        self.assertEqual(catalog.metadata.catalog_id, "f1-25-corners-v2")
+        self.assertEqual(catalog.metadata.catalog_id, "f1-25-corners-v3")
         self.assertEqual(
             [(track.track_id, track.track_length_m) for track in catalog.tracks],
             [
@@ -245,8 +245,11 @@ class CatalogParsingTests(unittest.TestCase):
                 (5, 3323),
                 (6, 4371),
                 (7, 5890),
+                (9, 4378),
                 (10, 7007),
                 (11, 5798),
+                (12, 4928),
+                (13, 5809),
             ],
         )
 
@@ -267,6 +270,25 @@ class CatalogParsingTests(unittest.TestCase):
             with self.subTest(track_id=track_id, kind="wrong-length"):
                 with self.assertRaisesRegex(ValueError, "does not match"):
                     select_catalog_track(catalog, track_id, track_length + 1)
+
+    def test_batch_two_track_selection_and_fallback(self) -> None:
+        catalog = load_bundled_corner_catalog()
+        for track_id, length, turns in ((9, 4378, 14), (12, 4928, 19), (13, 5809, 18)):
+            with self.subTest(track_id=track_id):
+                selection = select_catalog_track(catalog, track_id, length)
+                self.assertEqual(selection.status, "matched")
+                self.assertEqual(
+                    tuple(turn.number for turn in selection.track.turns),
+                    tuple(range(1, turns + 1)),
+                )
+                with self.assertRaisesRegex(ValueError, "does not match"):
+                    select_catalog_track(catalog, track_id, length + 1)
+        for track_id in (14, 15, 16):
+            with self.subTest(track_id=track_id):
+                self.assertEqual(
+                    select_catalog_track(catalog, track_id, 5000).status,
+                    "track_not_found",
+                )
 
     def test_package_contract_includes_the_bundled_catalog(self) -> None:
         repository = Path(__file__).resolve().parents[1]

@@ -103,7 +103,8 @@ replace the default fastest eligible reference and repeat `--comparison-lap`
 to select specific eligible laps.
 
 The analyzer uses the bundled, versioned F1 25 corner catalog for Albert Park,
-Shanghai, Sakhir, Catalunya, Monaco, Montréal, Silverstone, Spa, and Monza.
+Shanghai, Sakhir, Catalunya, Monaco, Montréal, Silverstone, Hungaroring, Spa,
+Monza, Marina Bay, and Suzuka.
 Matching regions are labeled with official turn numbers and named complexes in
 console, JSON, and Markdown output. Unknown tracks retain sector and
 metre-range labels. Supply `--corner-catalog PATH` to replace the bundled

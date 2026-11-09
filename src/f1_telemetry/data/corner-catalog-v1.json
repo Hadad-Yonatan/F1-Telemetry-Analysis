@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_id": "f1-25-corners-v2",
+  "catalog_id": "f1-25-corners-v3",
   "packet_format": 2025,
   "game_year": 25,
   "tracks": [
@@ -174,6 +174,27 @@
     },
 
     {
+      "track_id": 9,
+      "display_name": "Hungaroring",
+      "track_length_m": 4378,
+      "turns": [
+        {"turn_id": "hungaroring-t01", "number": 1, "display_name": "Piquet", "direction": "right", "entry_distance_m": 564.000, "apex_distance_m": 620.000, "exit_distance_m": 684.000},
+        {"turn_id": "hungaroring-t02", "number": 2, "display_name": "Hamilton", "direction": "left", "entry_distance_m": 1015.000, "apex_distance_m": 1134.000, "exit_distance_m": 1245.000},
+        {"turn_id": "hungaroring-t03", "number": 3, "display_name": "Spring", "direction": "right", "entry_distance_m": 1245.000, "apex_distance_m": 1320.000, "exit_distance_m": 1380.000},
+        {"turn_id": "hungaroring-t04", "number": 4, "display_name": "Mansell", "direction": "left", "entry_distance_m": 1758.000, "apex_distance_m": 1805.000, "exit_distance_m": 1875.000},
+        {"turn_id": "hungaroring-t05", "number": 5, "display_name": "Mogyoród", "direction": "right", "entry_distance_m": 1928.000, "apex_distance_m": 2094.000, "exit_distance_m": 2122.000},
+        {"turn_id": "hungaroring-t06", "number": 6, "display_name": "Driving Center", "direction": "right", "entry_distance_m": 2329.000, "apex_distance_m": 2384.000, "exit_distance_m": 2401.000},
+        {"turn_id": "hungaroring-t07", "number": 7, "display_name": "Driving Center", "direction": "left", "entry_distance_m": 2401.000, "apex_distance_m": 2412.000, "exit_distance_m": 2428.000},
+        {"turn_id": "hungaroring-t08", "number": 8, "display_name": "Buda", "direction": "left", "entry_distance_m": 2536.000, "apex_distance_m": 2588.000, "exit_distance_m": 2645.000},
+        {"turn_id": "hungaroring-t09", "number": 9, "display_name": "Pest", "direction": "right", "entry_distance_m": 2645.000, "apex_distance_m": 2760.000, "exit_distance_m": 2788.000},
+        {"turn_id": "hungaroring-t10", "number": 10, "display_name": "Danube", "direction": "left", "entry_distance_m": 2845.000, "apex_distance_m": 2930.000, "exit_distance_m": 2969.000},
+        {"turn_id": "hungaroring-t11", "number": 11, "display_name": "Alesi", "direction": "right", "entry_distance_m": 3027.000, "apex_distance_m": 3127.000, "exit_distance_m": 3181.000},
+        {"turn_id": "hungaroring-t12", "number": 12, "display_name": "Schumacher", "direction": "right", "entry_distance_m": 3476.000, "apex_distance_m": 3527.000, "exit_distance_m": 3588.000},
+        {"turn_id": "hungaroring-t13", "number": 13, "display_name": "Senna", "direction": "left", "entry_distance_m": 3700.000, "apex_distance_m": 3752.000, "exit_distance_m": 3843.000},
+        {"turn_id": "hungaroring-t14", "number": 14, "display_name": "Szisz", "direction": "right", "entry_distance_m": 3958.000, "apex_distance_m": 4086.000, "exit_distance_m": 4213.000}
+      ]
+    },
+    {
       "track_id": 10,
       "display_name": "Spa-Francorchamps",
       "track_length_m": 7007,
@@ -229,6 +250,63 @@
         {"complex_id": "monza-rettifilo", "display_name": "Variante del Rettifilo", "turn_ids": ["monza-t01", "monza-t02"]},
         {"complex_id": "monza-roggia", "display_name": "Variante della Roggia", "turn_ids": ["monza-t04", "monza-t05"]},
         {"complex_id": "monza-ascari", "display_name": "Variante Ascari", "turn_ids": ["monza-t08", "monza-t09", "monza-t10"]}
+      ]
+    },
+    {
+      "track_id": 12,
+      "display_name": "Marina Bay Street Circuit",
+      "track_length_m": 4928,
+      "turns": [
+        {"turn_id": "singapore-t01", "number": 1, "display_name": "Sheares", "direction": "left", "entry_distance_m": 381.000, "apex_distance_m": 448.000, "exit_distance_m": 482.000},
+        {"turn_id": "singapore-t02", "number": 2, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 482.000, "apex_distance_m": 507.000, "exit_distance_m": 540.000},
+        {"turn_id": "singapore-t03", "number": 3, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 540.000, "apex_distance_m": 596.000, "exit_distance_m": 624.000},
+        {"turn_id": "singapore-t04", "number": 4, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 675.000, "apex_distance_m": 723.000, "exit_distance_m": 768.000},
+        {"turn_id": "singapore-t05", "number": 5, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 922.000, "apex_distance_m": 989.000, "exit_distance_m": 1065.000},
+        {"turn_id": "singapore-t06", "number": 6, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1366.000, "apex_distance_m": 1456.000, "exit_distance_m": 1530.000},
+        {"turn_id": "singapore-t07", "number": 7, "display_name": "Memorial", "direction": "left", "entry_distance_m": 1762.000, "apex_distance_m": 1814.000, "exit_distance_m": 1915.000},
+        {"turn_id": "singapore-t08", "number": 8, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 1977.000, "apex_distance_m": 2046.000, "exit_distance_m": 2062.000},
+        {"turn_id": "singapore-t09", "number": 9, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2159.000, "apex_distance_m": 2217.000, "exit_distance_m": 2255.000},
+        {"turn_id": "singapore-t10", "number": 10, "display_name": "Singapore Sling", "direction": "left", "entry_distance_m": 2625.000, "apex_distance_m": 2664.000, "exit_distance_m": 2761.000},
+        {"turn_id": "singapore-t11", "number": 11, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 2761.000, "apex_distance_m": 2806.000, "exit_distance_m": 2830.000},
+        {"turn_id": "singapore-t12", "number": 12, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 2863.000, "apex_distance_m": 2896.000, "exit_distance_m": 2924.000},
+        {"turn_id": "singapore-t13", "number": 13, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3032.000, "apex_distance_m": 3076.000, "exit_distance_m": 3106.000},
+        {"turn_id": "singapore-t14", "number": 14, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 3571.000, "apex_distance_m": 3625.000, "exit_distance_m": 3680.000},
+        {"turn_id": "singapore-t15", "number": 15, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 3804.000, "apex_distance_m": 3840.000, "exit_distance_m": 3915.000},
+        {"turn_id": "singapore-t16", "number": 16, "display_name": "Unnamed", "direction": "right", "entry_distance_m": 4310.000, "apex_distance_m": 4369.000, "exit_distance_m": 4387.000},
+        {"turn_id": "singapore-t17", "number": 17, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4387.000, "apex_distance_m": 4422.000, "exit_distance_m": 4481.000},
+        {"turn_id": "singapore-t18", "number": 18, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4672.000, "apex_distance_m": 4723.000, "exit_distance_m": 4745.000},
+        {"turn_id": "singapore-t19", "number": 19, "display_name": "Unnamed", "direction": "left", "entry_distance_m": 4745.000, "apex_distance_m": 4813.000, "exit_distance_m": 4898.000}
+      ]
+    },
+    {
+      "track_id": 13,
+      "display_name": "Suzuka Circuit",
+      "track_length_m": 5809,
+      "turns": [
+        {"turn_id": "suzuka-t01", "number": 1, "display_name": "First Curve", "direction": "right", "entry_distance_m": 625.000, "apex_distance_m": 659.000, "exit_distance_m": 715.000},
+        {"turn_id": "suzuka-t02", "number": 2, "display_name": "Second Curve", "direction": "right", "entry_distance_m": 715.000, "apex_distance_m": 853.000, "exit_distance_m": 961.000},
+        {"turn_id": "suzuka-t03", "number": 3, "display_name": "S Curves", "direction": "left", "entry_distance_m": 1029.000, "apex_distance_m": 1110.000, "exit_distance_m": 1164.000},
+        {"turn_id": "suzuka-t04", "number": 4, "display_name": "S Curves", "direction": "right", "entry_distance_m": 1164.000, "apex_distance_m": 1223.000, "exit_distance_m": 1306.000},
+        {"turn_id": "suzuka-t05", "number": 5, "display_name": "S Curves", "direction": "left", "entry_distance_m": 1306.000, "apex_distance_m": 1388.000, "exit_distance_m": 1460.000},
+        {"turn_id": "suzuka-t06", "number": 6, "display_name": "Gyaku Bank", "direction": "right", "entry_distance_m": 1460.000, "apex_distance_m": 1608.000, "exit_distance_m": 1671.000},
+        {"turn_id": "suzuka-t07", "number": 7, "display_name": "NIPPO Corner", "direction": "left", "entry_distance_m": 1671.000, "apex_distance_m": 1761.000, "exit_distance_m": 2172.000},
+        {"turn_id": "suzuka-t08", "number": 8, "display_name": "Degner 1", "direction": "right", "entry_distance_m": 2255.000, "apex_distance_m": 2319.000, "exit_distance_m": 2338.000},
+        {"turn_id": "suzuka-t09", "number": 9, "display_name": "Degner 2", "direction": "right", "entry_distance_m": 2406.000, "apex_distance_m": 2481.000, "exit_distance_m": 2504.000},
+        {"turn_id": "suzuka-t10", "number": 10, "display_name": "110R", "direction": "right", "entry_distance_m": 2725.000, "apex_distance_m": 2788.000, "exit_distance_m": 2833.000},
+        {"turn_id": "suzuka-t11", "number": 11, "display_name": "Hairpin", "direction": "left", "entry_distance_m": 2866.000, "apex_distance_m": 2938.000, "exit_distance_m": 2982.000},
+        {"turn_id": "suzuka-t12", "number": 12, "display_name": "200R", "direction": "right", "entry_distance_m": 3039.000, "apex_distance_m": 3220.000, "exit_distance_m": 3659.000},
+        {"turn_id": "suzuka-t13", "number": 13, "display_name": "Spoon", "direction": "left", "entry_distance_m": 3757.000, "apex_distance_m": 3833.000, "exit_distance_m": 3899.000},
+        {"turn_id": "suzuka-t14", "number": 14, "display_name": "Spoon", "direction": "left", "entry_distance_m": 3899.000, "apex_distance_m": 3974.000, "exit_distance_m": 4109.000},
+        {"turn_id": "suzuka-t15", "number": 15, "display_name": "130R", "direction": "left", "entry_distance_m": 4915.000, "apex_distance_m": 4991.000, "exit_distance_m": 5082.000},
+        {"turn_id": "suzuka-t16", "number": 16, "display_name": "Chicane", "direction": "right", "entry_distance_m": 5342.000, "apex_distance_m": 5413.000, "exit_distance_m": 5427.000},
+        {"turn_id": "suzuka-t17", "number": 17, "display_name": "Chicane", "direction": "left", "entry_distance_m": 5427.000, "apex_distance_m": 5453.000, "exit_distance_m": 5498.000},
+        {"turn_id": "suzuka-t18", "number": 18, "display_name": "Last Curve", "direction": "right", "entry_distance_m": 5498.000, "apex_distance_m": 5630.000, "exit_distance_m": 5718.000}
+      ],
+      "complexes": [
+        {"complex_id": "suzuka-s-curves", "display_name": "S Curves", "turn_ids": ["suzuka-t03", "suzuka-t04", "suzuka-t05"]},
+        {"complex_id": "suzuka-degner", "display_name": "Degner Curve", "turn_ids": ["suzuka-t08", "suzuka-t09"]},
+        {"complex_id": "suzuka-spoon", "display_name": "Spoon Curve", "turn_ids": ["suzuka-t13", "suzuka-t14"]},
+        {"complex_id": "suzuka-chicane", "display_name": "Chicane", "turn_ids": ["suzuka-t16", "suzuka-t17"]}
       ]
     }
   ]
