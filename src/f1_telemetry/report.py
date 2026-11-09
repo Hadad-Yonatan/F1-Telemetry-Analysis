@@ -218,6 +218,26 @@ def render_markdown_report(result: AnalysisResult) -> str:
         )
 
     reference = result.comparisons[0].reference
+    context = result.session_context
+    if context is not None:
+        lines.extend(("", "## Session context", ""))
+        if context.settings is not None:
+            settings = context.settings
+            lines.append(
+                f"Session type {settings.session_type}, weather {settings.weather}, "
+                f"track {settings.track_temperature_c} °C, air {settings.air_temperature_c} °C."
+            )
+        else:
+            lines.append("Session settings unavailable.")
+        lines.append(
+            f"Optional context decode errors: {sum(row.decode_errors for row in context.diagnostics)}."
+        )
+        lines.extend(("", "| Lap | Conditions stable | Missing at start | Changes |",
+                      "| ---: | :--- | :--- | ---: |"))
+        for lap in context.laps:
+            stable = {True: "Yes", False: "No", None: "Unknown"}[lap.stable_during_lap]
+            missing = lap.unavailable_reason or ", ".join(lap.missing_at_start) or "None"
+            lines.append(f"| {lap.lap_number} | {stable} | {missing} | {len(lap.change_indices)} |")
     lines.extend(
         (
             "",

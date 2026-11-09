@@ -40,5 +40,5 @@ wing or suspension limits are applied. Values are validated where the wire
 contract specifies a range; unsupported or unpublished car, team, driver and
 game-mode labels are not guessed.
 
-These decoders are opt-in building blocks. The existing core Session decoder,
-capture processing, normalized CSV and analysis outputs are unchanged.
+The core Session decoder and normalized CSV do not depend on these decoders.
+Analysis uses them to attach [session context](session-context-v1.md).

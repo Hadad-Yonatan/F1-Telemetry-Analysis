@@ -21,6 +21,7 @@ from f1_telemetry.lap_analysis import (
 )
 from f1_telemetry.plot import write_comparison_svg
 from f1_telemetry.report import comparison_stem, write_markdown_report
+from f1_telemetry.session_context import context_document
 
 SvgWriter = Callable[[PreparedSession, LapComparison, Path], None]
 ReportWriter = Callable[[AnalysisResult, Path], None]
@@ -264,6 +265,9 @@ def analysis_document(result: AnalysisResult) -> dict[str, object]:
     }
     return {
         "schema_version": config.schema_version,
+        "session_context": (
+            context_document(result.session_context) if result.session_context is not None else None
+        ),
         "capture": asdict(result.capture),
         "corner_catalog": _catalog_document(result.catalog_selection),
         "algorithm": {

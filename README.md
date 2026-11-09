@@ -98,6 +98,9 @@ requests. Six synchronized panels support comparison selection, cursor
 inspection, channel visibility, region navigation, and distance zoom. Both
 reports cover every loss region, including aggregate trace evidence, matched
 driving-event measurements, and explicit unmatched events.
+Analysis also records [session and lap context](docs/session-context-v1.md),
+including observed weather, assists, setup fingerprints, and changes during
+eligible laps. Missing context is explicit and does not change lap eligibility.
 Existing output directories are never overwritten. Use `--reference-lap` to
 replace the default fastest eligible reference and repeat `--comparison-lap`
 to select specific eligible laps.

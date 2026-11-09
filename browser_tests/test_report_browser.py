@@ -9,7 +9,9 @@ from playwright.sync_api import sync_playwright
 from f1_telemetry.analysis_output import write_analysis_bundle
 from f1_telemetry.capture_format import CaptureWriter
 from f1_telemetry.lap_analysis import PreparedSession, analyze_capture
+from f1_telemetry.session_context import ContextCollector
 from tests.test_analysis_output import prepared_session
+from tests.test_session_context import add, session_packet
 
 
 def browser_result(capture: Path):
@@ -26,14 +28,17 @@ def browser_result(capture: Path):
             replace(
                 lap,
                 samples=(
-                    replace(lap.samples[0], lap_distance=0, total_distance=0),
-                    replace(lap.samples[-1], lap_distance=499, total_distance=499),
+                    replace(lap.samples[0], lap_distance=0, total_distance=0, session_uid=3_410_183_638_808_808_837),
+                    replace(lap.samples[-1], lap_distance=499, total_distance=499, session_uid=3_410_183_638_808_808_837),
                 ),
             )
             for lap in original.laps
         ),
         normalization=original.normalization,
     )
+    collector = ContextCollector(extended.session_uid, 0)
+    add(collector, session_packet(1, uid=extended.session_uid))
+    extended = replace(extended, context=collector.finish(extended.laps))
     with patch("f1_telemetry.lap_analysis.prepare_session", return_value=extended):
         result = analyze_capture(capture, corner_catalog=None)
     comparisons = []
@@ -96,6 +101,9 @@ class HtmlReportBrowserTests(unittest.TestCase):
         self.assertEqual(selector.input_value(), "1")
         self.assertEqual(page.locator("body").get_attribute("data-comparison-lap"), "1")
         self.assertTrue(page.get_by_text("3410183638808808837", exact=True).is_visible())
+        self.assertTrue(page.get_by_text("Track temperature", exact=True).is_visible())
+        self.assertTrue(page.get_by_text("33 °C", exact=True).is_visible())
+        self.assertTrue(page.get_by_text("24 °C", exact=True).is_visible())
         self.assertEqual(page.get_by_role("img").count(), 6)
         self.assertEqual(page.get_by_role("checkbox", name="Brake").count(), 1)
 

@@ -70,6 +70,14 @@
     appendDefinition(summary, "Catalog", analysis.corner_catalog.catalog_id || analysis.corner_catalog.status);
     appendDefinition(summary, "Joined samples", analysis.session.normalization.samples_joined);
     appendDefinition(summary, "Decode errors", analysis.session.normalization.decode_errors);
+    const context = analysis.session_context;
+    if (context) {
+      const settings = context.settings;
+      appendDefinition(summary, "Session type", settings ? settings.session_type : "Unavailable");
+      appendDefinition(summary, "Weather code", settings ? settings.weather : "Unavailable");
+      appendDefinition(summary, "Track temperature", settings ? `${settings.track_temperature_c} °C` : "Unavailable");
+      appendDefinition(summary, "Air temperature", settings ? `${settings.air_temperature_c} °C` : "Unavailable");
+    }
     appendDefinition(
       summary,
       "Unmatched frames",
