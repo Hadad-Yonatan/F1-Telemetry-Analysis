@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 from f1_telemetry.lap_analysis import AnalysisResult, analyze_capture
+from f1_telemetry.session_context import ContextDiagnostics
 
 
 SCHEMA_VERSION = 1
@@ -94,6 +95,7 @@ class CaseObservations:
     unmatched_lap_packets: int
     unmatched_telemetry_packets: int
     finish_delta_errors_s: tuple[float, ...]
+    context_diagnostics: tuple[ContextDiagnostics, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -402,6 +404,9 @@ def _observations(result: AnalysisResult) -> CaseObservations:
             comparison.final_delta_error_s
             for comparison in result.comparisons
         ),
+        context_diagnostics=(
+            result.session_context.diagnostics if result.session_context is not None else ()
+        ),
     )
 
 
@@ -624,6 +629,16 @@ def validation_document(result: SuiteValidationResult) -> dict[str, object]:
                         _rounded_finite(value, 12)
                         for value in case_result.observations.finish_delta_errors_s
                     ],
+                    "context_diagnostics": {
+                        row.kind: {
+                            "accepted": row.accepted,
+                            "ignored": row.ignored,
+                            "decode_errors": row.decode_errors,
+                            "duplicates": row.duplicates,
+                            "conflicts": row.conflicts,
+                        }
+                        for row in case_result.observations.context_diagnostics
+                    },
                 },
                 "metrics": _metrics_document(case_result.metrics),
                 "failures": [

@@ -96,6 +96,7 @@ def analysis_result(
     )
     return SimpleNamespace(
         config=SimpleNamespace(algorithm_version="1.1.0"),
+        session_context=None,
         capture=SimpleNamespace(
             sha256=hashlib.sha256(b"capture").hexdigest(),
             size_bytes=len(b"capture"),

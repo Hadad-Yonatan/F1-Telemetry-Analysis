@@ -45,6 +45,7 @@ from f1_telemetry.normalize import (
     normalize_capture,
 )
 from f1_telemetry.probe import parse_header_prefix
+from f1_telemetry.session_context import ContextCollector, SessionContext
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,7 @@ class PreparedSession:
     validations: tuple[LapValidation, ...]
     laps: tuple[LapTrace, ...]
     normalization: NormalizationSummary = NormalizationSummary()
+    context: SessionContext | None = None
 
 
 @dataclass(frozen=True)
@@ -266,6 +268,10 @@ class AnalysisResult:
     comparisons: tuple[LapComparison, ...]
     catalog_selection: CatalogSelection
 
+    @property
+    def session_context(self) -> SessionContext | None:
+        return self.session.context
+
 
 def _validation(history: DecodedLapHistory) -> LapValidation:
     eligible = history.officially_valid and history.structurally_complete
@@ -385,10 +391,12 @@ def prepare_session(
 
     session_data: DecodedSessionData | None = None
     player_history = None
+    context = ContextCollector(session_uid, player_index)
     for record in iter_capture(path):
         header = parse_header_prefix(record.payload)
         if header is None or header.packet_format != 2025:
             continue
+        context.accept(record, header.packet_id)
         if header.packet_id == SESSION_PACKET_ID:
             decoded_session = decode_session_data(record.payload)
             if decoded_session.identity.session_uid == session_uid:
@@ -433,6 +441,7 @@ def prepare_session(
         validations=validations,
         laps=tuple(traces),
         normalization=_normalization_summary(normalized),
+        context=context.finish(traces),
     )
 
 
@@ -869,6 +878,17 @@ def print_analysis(result: AnalysisResult) -> None:
         f"Session {session.session_uid} | track_id={session.track_id} | "
         f"length={session.track_length} m"
     )
+    if result.session_context is not None:
+        context = result.session_context
+        settings = context.settings
+        if settings is None:
+            print("Session context: unavailable")
+        else:
+            print(
+                f"Session context: type={settings.session_type}, weather={settings.weather}, "
+                f"track={settings.track_temperature_c} °C, air={settings.air_temperature_c} °C"
+            )
+        print(f"Optional context decode errors: {sum(row.decode_errors for row in context.diagnostics)}")
     if result.catalog_selection.track is not None:
         print(f"Corner catalog: {result.catalog_selection.track.display_name}")
     else:
