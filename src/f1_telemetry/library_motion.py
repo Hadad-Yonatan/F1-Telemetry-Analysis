@@ -122,7 +122,11 @@ def motion_projection(motion: dict, analysis: dict) -> dict:
             ):
                 raise BundleError(f"invalid motion series: {name}")
             values_by_lap[number][name] = values
-    comparison_laps = [lap for lap in eligible if lap != reference]
+    policy = object_value(analysis["session_policy"], "session policy") if "session_policy" in analysis else {}
+    if policy.get("status") == "experimental":
+        comparison_laps = sorted(comparison["comparison_lap"] for comparison in analysis["comparisons"])
+    else:
+        comparison_laps = [lap for lap in eligible if lap != reference]
     comparisons = array_value(motion.get("comparisons"), "motion comparisons")
     if len(comparison_laps) != len(comparisons):
         raise BundleError("motion comparison count does not match analysis")

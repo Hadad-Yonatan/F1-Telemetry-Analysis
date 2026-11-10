@@ -137,6 +137,10 @@
     comparison.sector_deltas_s.forEach((value, index) => {
       appendDefinition(summary, `Sector ${index + 1}`, signed(value, 3, " s"));
     });
+    if (comparison.policy_context) {
+      appendDefinition(summary, "Experimental conditions",
+        comparison.policy_context.cross_context ? "Cross-context comparison" : "Same condition cohort");
+    }
     const presentation = presentations.get(state.comparisonLap);
     document.getElementById("csv-link").href = presentation.artifact_links.csv;
     document.getElementById("svg-link").href = presentation.artifact_links.svg;

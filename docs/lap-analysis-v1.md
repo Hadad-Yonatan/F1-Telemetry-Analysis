@@ -193,6 +193,24 @@ The refactor preserves official history eligibility, retained flying-lap
 samples, fastest-eligible reference selection, and the existing numeric
 comparison and validation gates.
 
+Practice and Qualifying are available only with
+`--allow-experimental-session-mode`. They are tested with synthetic packet
+timelines; no real capture validation is claimed. They reject invalid or
+incomplete timing, pit-entry, pit-exit, installation, and interrupted laps,
+as well as laps with a known change to a cohort condition while timed.
+Each recorded exclusion remains in the lap eligibility table.
+
+Default comparisons use the fastest eligible lap that has a partner with
+the same known condition cohort. The cohort includes lap-start weather and
+temperatures, car and performance settings, assists, setup fingerprint,
+tyre compounds and fitted set when known, and stable car controls.
+Routine fuel burn and tyre age are recorded but do not split a cohort.
+Missing required evidence cannot certify a match. To compare across
+conditions or missing evidence, select both `--reference-lap` and
+`--comparison-lap` and pass `--allow-cross-context`. The analysis records
+the override, field-level differences, and any missing cohort fields.
+Consistency remains a descriptive summary of all eligible laps.
+
 ## Lap consistency
 
 Consistency schema 1, method `1.0.0`, includes every eligible lap in lap-number

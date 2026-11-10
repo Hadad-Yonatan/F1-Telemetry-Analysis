@@ -12,6 +12,7 @@ from f1_telemetry.lap_analysis import AnalysisConfig, PreparedSession, analyze_c
 from f1_telemetry.session_context import ContextCollector
 from f1_telemetry.session_policy import PolicySelection
 from tests.test_analysis_output import prepared_session
+from tests.test_experimental_policy import write_experimental
 from tests.test_motion_analysis import fixture_motion
 from tests.test_session_context import add, session_packet
 
@@ -80,6 +81,14 @@ class HtmlReportBrowserTests(unittest.TestCase):
         coarse_bundle = root / "coarse"
         write_analysis_bundle(browser_result(capture, step=20.0), coarse_bundle)
         cls.coarse_report_url = (coarse_bundle / "report.html").as_uri()
+        experimental_capture = root / "practice.f1cap"
+        write_experimental(experimental_capture)
+        experimental = root / "experimental"
+        write_analysis_bundle(analyze_capture(
+            experimental_capture, reference_lap=1, comparison_laps=(3,),
+            allow_experimental_session_mode=True, allow_cross_context=True,
+        ), experimental)
+        cls.experimental_report_url = (experimental / "report.html").as_uri()
         cls.playwright = sync_playwright().start()
         cls.browser = cls.playwright.chromium.launch()
 
@@ -224,6 +233,11 @@ class HtmlReportBrowserTests(unittest.TestCase):
         self.assertEqual(track_map.get_attribute("data-cursor-distance"), "100.000")
         track_map.press("End")
         self.assertEqual(track_map.get_attribute("data-cursor-distance"), "340.000")
+
+    def test_experimental_policy_and_cross_context_are_visible(self) -> None:
+        page = self.open_report(url=self.experimental_report_url)
+        self.assertTrue(page.get_by_text("practice (experimental, method 1.0.0)", exact=True).is_visible())
+        self.assertTrue(page.get_by_text("Cross-context comparison", exact=True).is_visible())
 
 
 if __name__ == "__main__":

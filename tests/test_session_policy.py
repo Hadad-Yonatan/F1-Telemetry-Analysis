@@ -66,9 +66,11 @@ class SessionPolicyTests(unittest.TestCase):
             select_session_policy(0)
         with self.assertRaisesRegex(ValueError, "not requested time-trial"):
             select_session_policy(1, "time-trial")
-        for code, mode in ((1, "practice"), (5, "qualifying"), (15, "race")):
-            with self.subTest(code=code), self.assertRaisesRegex(ValueError, f"{mode} is not yet available"):
+        for code, mode in ((1, "practice"), (5, "qualifying")):
+            with self.subTest(code=code), self.assertRaisesRegex(ValueError, f"{mode} policy is experimental"):
                 select_session_policy(code)
+        with self.assertRaisesRegex(ValueError, "race is not yet available"):
+            select_session_policy(15)
 
     def test_conditions_report_stable_field_level_differences(self):
         first = ConditionCohort.from_mapping("practice", {"weather": 0, "setup": "a"})

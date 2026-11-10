@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from statistics import fmean
 from typing import Sequence
@@ -41,6 +41,7 @@ from f1_telemetry.driving_events import (
     matched_event_for_region,
     unmatched_events_for_region,
 )
+from f1_telemetry.experimental_policy import ComparisonContext, ExperimentalTimedPolicy, LapPolicyContext, compare_context
 from f1_telemetry.normalize import (
     NormalizationResult,
     NormalizedSample,
@@ -109,6 +110,7 @@ class PreparedSession:
     normalization: NormalizationSummary = NormalizationSummary()
     context: SessionContext | None = None
     policy: PolicySelection | None = None
+    lap_policy_context: tuple[LapPolicyContext, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -261,6 +263,7 @@ class LapComparison:
     event_matches: tuple[MatchedDrivingEvent, ...]
     unmatched_reference_event_indices: tuple[int, ...]
     unmatched_comparison_event_indices: tuple[int, ...]
+    policy_context: ComparisonContext | None = None
 
     @property
     def reference_lap(self) -> int:
@@ -384,6 +387,7 @@ def prepare_session(
     *,
     normalized: NormalizationResult | None = None,
     session_policy: PolicyMode = "auto",
+    allow_experimental_session_mode: bool = False,
 ) -> PreparedSession:
     """Build eligible final lap timelines from one capture."""
     if normalized is None:
@@ -424,25 +428,58 @@ def prepare_session(
     if player_history is None:
         raise ValueError("capture has no player Session History packet")
 
-    active_policy = select_session_policy(session_data.session_type, session_policy)
-    validations = tuple(_validation(lap, active_policy.decide_history(lap)) for lap in player_history.laps)
+    active_policy = select_session_policy(
+        session_data.session_type, session_policy, allow_experimental=allow_experimental_session_mode,
+    )
+    validations = [_validation(lap, active_policy.decide_history(lap)) for lap in player_history.laps]
     samples_by_lap: dict[int, list[NormalizedSample]] = defaultdict(list)
     for sample in normalized.samples:
         if sample.session_uid == session_uid:
             samples_by_lap[sample.lap_number].append(sample)
 
     traces = []
-    for validation in validations:
+    experimental = active_policy if isinstance(active_policy, ExperimentalTimedPolicy) else None
+    for index, validation in enumerate(validations):
         if not validation.eligible:
             continue
-        traces.append(
-            _resolve_trace(
-                samples_by_lap[validation.lap_number],
+        samples = samples_by_lap[validation.lap_number]
+        if experimental is not None:
+            decision = experimental.decide_frames(validation.lap_number, samples, player_index=player_index)
+            if not decision.eligible:
+                validations[index] = replace(validation, eligible=False, reason=decision.reason)
+                continue
+        try:
+            trace = _resolve_trace(
+                samples,
                 validation,
                 session_data.track_length,
                 driver_statuses=active_policy.driver_statuses,
             )
-        )
+        except ValueError:
+            if experimental is None:
+                raise
+            validations[index] = replace(validation, eligible=False, reason="incomplete timed trace")
+            continue
+        traces.append(trace)
+
+    session_context = context.finish(traces)
+    lap_policy_context = []
+    if experimental is not None:
+        exclusions = {}
+        for lap in session_context.laps:
+            decision = experimental.decide_context(session_context, lap)
+            if not decision.eligible:
+                exclusions[lap.lap_number] = decision.reason
+            else:
+                lap_policy_context.append(experimental.lap_context(session_context, lap))
+        traces = [trace for trace in traces if trace.lap_number not in exclusions]
+        validations = [
+            replace(row, eligible=False, reason=exclusions[row.lap_number]) if row.lap_number in exclusions else row
+            for row in validations
+        ]
+        session_context = replace(session_context, laps=tuple(
+            lap for lap in session_context.laps if lap.lap_number not in exclusions
+        ))
 
     return PreparedSession(
         session_uid=session_uid,
@@ -450,13 +487,14 @@ def prepare_session(
         track_id=session_data.track_id,
         sector2_distance=session_data.sector2_distance,
         sector3_distance=session_data.sector3_distance,
-        validations=validations,
+        validations=tuple(validations),
         laps=tuple(traces),
         normalization=_normalization_summary(normalized),
-        context=context.finish(traces),
+        context=session_context,
         policy=PolicySelection(
             active_policy.name, active_policy.status, active_policy.method_version, session_data.session_type,
         ),
+        lap_policy_context=tuple(lap_policy_context),
     )
 
 
@@ -777,6 +815,63 @@ def _selected_lap(
     raise ValueError(f"{role} lap {lap_number} is {validation.reason}")
 
 
+def _experimental_lap_selection(
+    session: PreparedSession, reference_lap: int | None, comparison_laps: Sequence[int] | None,
+    allow_cross_context: bool,
+) -> tuple[LapTrace, tuple[LapTrace, ...], dict[int, ComparisonContext]]:
+    contexts = {row.lap_number: row for row in session.lap_policy_context}
+    traces = tuple(sorted(session.laps, key=lambda trace: trace.lap_number))
+
+    def context_for(first: LapTrace, second: LapTrace) -> ComparisonContext:
+        return compare_context(contexts[first.lap_number], contexts[second.lap_number])
+
+    def comparable(first: LapTrace, second: LapTrace) -> bool:
+        a, b = contexts[first.lap_number], contexts[second.lap_number]
+        return not a.missing_fields and not b.missing_fields and a.cohort == b.cohort
+
+    chosen = None
+    if comparison_laps is not None:
+        if len(set(comparison_laps)) != len(comparison_laps):
+            raise ValueError("comparison laps cannot contain duplicates")
+        chosen = tuple(_selected_lap(session, lap, "comparison") for lap in comparison_laps)
+    if reference_lap is not None:
+        reference = _selected_lap(session, reference_lap, "reference")
+    else:
+        candidates = []
+        for trace in traces:
+            alternatives = tuple(
+                other for other in (traces if chosen is None else chosen) if other.lap_number != trace.lap_number
+            )
+            compatible = tuple(other for other in alternatives if comparable(trace, other))
+            if compatible and (chosen is None or len(compatible) == len(chosen)):
+                candidates.append(trace)
+        if not candidates:
+            raise ValueError("no eligible comparison within a complete condition cohort; explicitly select both laps and pass --allow-cross-context")
+        reference = min(candidates, key=lambda lap: (lap.official_lap_time_ms, lap.lap_number))
+
+    selected = []
+    decisions = {}
+    for comparison in traces if chosen is None else chosen:
+        if comparison.lap_number == reference.lap_number:
+            if chosen is not None:
+                raise ValueError("reference and comparison laps must be different")
+            continue
+        difference = context_for(reference, comparison)
+        if difference.cross_context:
+            if chosen is None:
+                continue
+            if not allow_cross_context or reference_lap is None:
+                raise ValueError(
+                    f"lap {comparison.lap_number} is outside a complete condition cohort; "
+                    "explicitly select both laps and pass --allow-cross-context"
+                )
+        selected.append(comparison)
+        decisions[comparison.lap_number] = difference
+    if not selected:
+        raise ValueError("no eligible comparison within a complete condition cohort; explicitly select both laps and pass --allow-cross-context")
+    return reference, tuple(selected), decisions
+
+
 def analyze_capture(
     path: str | Path,
     *,
@@ -786,6 +881,8 @@ def analyze_capture(
     corner_catalog: CornerCatalog | None = DEFAULT_CORNER_CATALOG,
     motion: MotionMode = "off",
     session_policy: PolicyMode = "auto",
+    allow_experimental_session_mode: bool = False,
+    allow_cross_context: bool = False,
 ) -> AnalysisResult:
     """Return the complete deterministic analysis for one capture."""
     capture_path = Path(path)
@@ -794,6 +891,7 @@ def analyze_capture(
     composite = normalize_composite_capture(capture_path) if motion != "off" else None
     session = prepare_session(
         capture_path, normalized=composite.core if composite is not None else None, session_policy=session_policy,
+        allow_experimental_session_mode=allow_experimental_session_mode,
     )
     if not session.laps:
         raise ValueError("capture has no eligible laps")
@@ -807,27 +905,34 @@ def analyze_capture(
         )
     )
 
-    if reference_lap is None:
-        reference_trace = min(
-            session.laps,
-            key=lambda lap: (lap.official_lap_time_ms, lap.lap_number),
+    policy_context = {}
+    experimental = session.policy is not None and session.policy.status == "experimental"
+    if experimental:
+        reference_trace, selected_comparisons, policy_context = _experimental_lap_selection(
+            session, reference_lap, comparison_laps, allow_cross_context,
         )
     else:
-        reference_trace = _selected_lap(session, reference_lap, "reference")
+        if reference_lap is None:
+            reference_trace = min(
+                session.laps,
+                key=lambda lap: (lap.official_lap_time_ms, lap.lap_number),
+            )
+        else:
+            reference_trace = _selected_lap(session, reference_lap, "reference")
 
-    if comparison_laps is None:
-        selected_comparisons = tuple(
-            lap
-            for lap in sorted(session.laps, key=lambda item: item.lap_number)
-            if lap.lap_number != reference_trace.lap_number
-        )
-    else:
-        if len(set(comparison_laps)) != len(comparison_laps):
-            raise ValueError("comparison laps cannot contain duplicates")
-        selected_comparisons = tuple(
-            _selected_lap(session, lap_number, "comparison")
-            for lap_number in comparison_laps
-        )
+        if comparison_laps is None:
+            selected_comparisons = tuple(
+                lap
+                for lap in sorted(session.laps, key=lambda item: item.lap_number)
+                if lap.lap_number != reference_trace.lap_number
+            )
+        else:
+            if len(set(comparison_laps)) != len(comparison_laps):
+                raise ValueError("comparison laps cannot contain duplicates")
+            selected_comparisons = tuple(
+                _selected_lap(session, lap_number, "comparison")
+                for lap_number in comparison_laps
+            )
 
     if not selected_comparisons:
         raise ValueError("at least one comparison lap is required")
@@ -881,15 +986,21 @@ def analyze_capture(
                 f"lap {comparison_trace.lap_number} finish delta differs from "
                 "the official lap-time difference"
             )
+        if experimental:
+            comparison_result = replace(comparison_result, policy_context=policy_context[comparison_trace.lap_number])
         comparisons.append(comparison_result)
         known_events[reference_trace.lap_number] = comparison_result.reference_events
         known_events[comparison_trace.lap_number] = comparison_result.comparison_events
 
     motion_result = None
     if motion_inputs is not None:
-        motion_result = analyze_motion(session, motion_inputs, reference_trace.lap_number, reference.distance)
+        selected = {trace.lap_number for trace in selected_comparisons}
+        motion_result = analyze_motion(
+            session, motion_inputs, reference_trace.lap_number, reference.distance,
+            comparison_laps=selected if experimental else None,
+        )
         if motion == "required":
-            require_motion(motion_result, {trace.lap_number for trace in selected_comparisons})
+            require_motion(motion_result, selected)
 
     return AnalysisResult(
         config=config,
@@ -1021,6 +1132,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--session-policy", choices=POLICY_CHOICES, default="auto",
         help="select the recorded session mode (default), or require the stated mode",
     )
+    parser.add_argument(
+        "--allow-experimental-session-mode", action="store_true",
+        help="permit explicitly experimental Practice and Qualifying analysis",
+    )
+    parser.add_argument(
+        "--allow-cross-context", action="store_true",
+        help="allow explicitly selected laps outside one complete condition cohort",
+    )
     catalog_group = parser.add_mutually_exclusive_group()
     catalog_group.add_argument(
         "--corner-catalog",
@@ -1053,6 +1172,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             corner_catalog=corner_catalog,
             motion=args.motion,
             session_policy=args.session_policy,
+            allow_experimental_session_mode=args.allow_experimental_session_mode,
+            allow_cross_context=args.allow_cross_context,
         )
         print_analysis(result)
         if args.output_dir is not None:

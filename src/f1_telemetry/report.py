@@ -274,6 +274,9 @@ def render_markdown_report(result: AnalysisResult) -> str:
         )
         for sector, delta in enumerate(comparison.sector_deltas_s, start=1):
             lines.append(f"| {sector} | {delta:+.3f} s |")
+        if comparison.policy_context is not None:
+            status = "cross-context comparison" if comparison.policy_context.cross_context else "same condition cohort"
+            lines.extend(("", f"Experimental conditions: {status}. See analysis.json for field-level evidence."))
         lines.extend(
             (
                 "",

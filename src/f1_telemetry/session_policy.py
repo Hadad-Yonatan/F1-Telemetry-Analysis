@@ -100,7 +100,9 @@ def session_mode(session_type: int | None) -> SessionMode | None:
     return _MODE_BY_TYPE.get(session_type) if session_type is not None else None
 
 
-def select_session_policy(session_type: int, requested: PolicyMode = "auto") -> SessionPolicy:
+def select_session_policy(
+    session_type: int, requested: PolicyMode = "auto", *, allow_experimental: bool = False,
+) -> SessionPolicy:
     """Select only a known, implemented policy; never reinterpret another mode as TT."""
     if requested not in POLICY_CHOICES:
         raise ValueError(f"unknown session policy: {requested}")
@@ -111,4 +113,10 @@ def select_session_policy(session_type: int, requested: PolicyMode = "auto") -> 
         raise ValueError(f"session type {session_type} is {mode}, not requested {requested}")
     if mode == "time-trial":
         return TimeTrialPolicy()
+    if mode in ("practice", "qualifying"):
+        if not allow_experimental:
+            raise ValueError(f"{mode} policy is experimental; pass --allow-experimental-session-mode")
+        from f1_telemetry.experimental_policy import PracticePolicy, QualifyingPolicy
+
+        return PracticePolicy() if mode == "practice" else QualifyingPolicy()
     raise ValueError(f"session policy {mode} is not yet available")
