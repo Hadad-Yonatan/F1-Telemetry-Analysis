@@ -49,6 +49,7 @@ from f1_telemetry.normalize import (
 )
 from f1_telemetry.motion_analysis import MotionMode, MotionResult, analyze_motion, require_motion, retain_motion_inputs
 from f1_telemetry.probe import parse_header_prefix
+from f1_telemetry.race_policy import RaceCollector, RaceEvidence, RacePolicy
 from f1_telemetry.session_context import ContextCollector, SessionContext
 from f1_telemetry.session_policy import (
     POLICY_CHOICES,
@@ -57,6 +58,7 @@ from f1_telemetry.session_policy import (
     PolicySelection,
     TimeTrialPolicy,
     select_session_policy,
+    session_mode,
 )
 
 
@@ -111,6 +113,7 @@ class PreparedSession:
     context: SessionContext | None = None
     policy: PolicySelection | None = None
     lap_policy_context: tuple[LapPolicyContext, ...] = ()
+    race_evidence: RaceEvidence | None = None
 
 
 @dataclass(frozen=True)
@@ -406,11 +409,16 @@ def prepare_session(
     session_data: DecodedSessionData | None = None
     player_history = None
     context = ContextCollector(session_uid, player_index)
+    race = RaceCollector(session_uid, player_index) if (
+        allow_experimental_session_mode and session_policy in ("auto", "race")
+    ) else None
     for record in iter_capture(path):
         header = parse_header_prefix(record.payload)
         if header is None or header.packet_format != 2025:
             continue
         context.accept(record, header.packet_id)
+        if race is not None and (session_data is None or session_mode(session_data.session_type) == "race"):
+            race.accept(record, header.packet_id)
         if header.packet_id == SESSION_PACKET_ID:
             decoded_session = decode_session_data(record.payload)
             if decoded_session.identity.session_uid == session_uid:
@@ -463,15 +471,28 @@ def prepare_session(
         traces.append(trace)
 
     session_context = context.finish(traces)
+    race_evidence = race.finish(session_context, samples_by_lap) if isinstance(active_policy, RacePolicy) and race is not None else None
+    race_by_lap = {row.lap_number: row for row in race_evidence.laps} if race_evidence is not None else {}
     lap_policy_context = []
     if experimental is not None:
         exclusions = {}
         for lap in session_context.laps:
+            race_lap = race_by_lap.get(lap.lap_number)
+            if isinstance(active_policy, RacePolicy):
+                if race_lap is None:
+                    exclusions[lap.lap_number] = "missing race lap evidence"
+                    continue
+                if race_lap.exclusion_reasons:
+                    exclusions[lap.lap_number] = race_lap.exclusion_reasons[0]
+                    continue
             decision = experimental.decide_context(session_context, lap)
             if not decision.eligible:
                 exclusions[lap.lap_number] = decision.reason
             else:
-                lap_policy_context.append(experimental.lap_context(session_context, lap))
+                lap_policy = experimental.lap_context(session_context, lap)
+                if isinstance(active_policy, RacePolicy) and race_lap is not None:
+                    lap_policy = active_policy.with_stint(lap_policy, race_lap)
+                lap_policy_context.append(lap_policy)
         traces = [trace for trace in traces if trace.lap_number not in exclusions]
         validations = [
             replace(row, eligible=False, reason=exclusions[row.lap_number]) if row.lap_number in exclusions else row
@@ -495,6 +516,7 @@ def prepare_session(
             active_policy.name, active_policy.status, active_policy.method_version, session_data.session_type,
         ),
         lap_policy_context=tuple(lap_policy_context),
+        race_evidence=race_evidence,
     )
 
 
@@ -894,6 +916,10 @@ def analyze_capture(
         allow_experimental_session_mode=allow_experimental_session_mode,
     )
     if not session.laps:
+        if session.race_evidence is not None and not (
+            session.race_evidence.event_packets and session.race_evidence.damage_packets
+        ):
+            raise ValueError("race analysis requires valid Event and Car Damage packets")
         raise ValueError("capture has no eligible laps")
     catalog_selection = (
         disabled_catalog_selection()
@@ -1134,7 +1160,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--allow-experimental-session-mode", action="store_true",
-        help="permit explicitly experimental Practice and Qualifying analysis",
+        help="permit explicitly experimental Practice, Qualifying, and Race analysis",
     )
     parser.add_argument(
         "--allow-cross-context", action="store_true",
