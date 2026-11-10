@@ -270,11 +270,14 @@ class LibraryService:
         )
         return tuple(Artifact(*row) for row in rows)
 
-    def get_artifact(self, bundle_id: str, path: str) -> ArtifactEntry | None:
+    def get_artifact(
+        self, bundle_id: str, path: str, *, manifested_only: bool = False
+    ) -> ArtifactEntry | None:
         bundle_id = digest_value(bundle_id, "bundle ID")
         rows = self._rows(
             "SELECT b.root, a.path, a.size_bytes, a.sha256 FROM artifacts AS a "
-            "JOIN bundles AS b USING(bundle_id) WHERE a.bundle_id=? AND a.path=?",
-            (bundle_id, path),
+            "JOIN bundles AS b USING(bundle_id) WHERE a.bundle_id=? AND a.path=? "
+            "AND (?=0 OR b.manifested=1)",
+            (bundle_id, path, int(manifested_only)),
         )
         return ArtifactEntry(bundle_id, Path(rows[0][0]), Artifact(*rows[0][1:])) if rows else None

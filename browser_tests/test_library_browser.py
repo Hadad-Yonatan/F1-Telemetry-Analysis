@@ -6,6 +6,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from f1_telemetry.bundle import write_bundle_manifest
 from f1_telemetry.library import import_bundles, init_library
 from tests.test_library import UID, write_fixture
 
@@ -26,10 +27,11 @@ class LibraryBrowserTests(unittest.TestCase):
         cls.addClassCleanup(temp.cleanup)
         root = Path(temp.name)
         bundle = write_fixture(root, "bundle")
-        database = root / "index.sqlite3"
-        init_library(database)
-        import_bundles(database, [bundle])
-        server = make_server("127.0.0.1", 0, create_app(database), request_handler=QuietHandler)
+        cls.root = root
+        cls.database = root / "index.sqlite3"
+        init_library(cls.database)
+        import_bundles(cls.database, [bundle])
+        server = make_server("127.0.0.1", 0, create_app(cls.database), request_handler=QuietHandler)
         cls.addClassCleanup(server.server_close)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -63,9 +65,10 @@ class LibraryBrowserTests(unittest.TestCase):
         self.assertTrue(page.get_by_role("heading", name="Lap 1", exact=True).is_visible())
         page.get_by_role("link", name="Back to session").click()
         page.get_by_role("link", name="Open standalone report").click()
-        picker = page.get_by_role("combobox", name="Comparison lap")
+        report = page.frame_locator('iframe[title="Driver analysis report"]')
+        picker = report.get_by_role("combobox", name="Comparison lap")
         picker.select_option("5")
-        self.assertEqual(page.locator("body").get_attribute("data-comparison-lap"), "5")
+        self.assertEqual(report.locator("body").get_attribute("data-comparison-lap"), "5")
         self.assertEqual(errors, [])
         self.assertEqual(failures, [])
         self.assertTrue(all(url.startswith(self.base + "/") for url in requests), requests)
@@ -87,3 +90,23 @@ class LibraryBrowserTests(unittest.TestCase):
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 1440)
         self.assertEqual(errors, [])
         self.assertEqual(failures, [])
+
+    def test_report_frame_cannot_navigate_to_an_external_origin(self):
+        bundle = write_fixture(self.root, "navigation-test", reference=1)
+        (bundle / "bundle.json").unlink()
+        (bundle / "report.html").write_text(
+            "<!doctype html><script>location.replace('https://example.invalid/report-proof');</script>",
+            encoding="utf-8",
+        )
+        bundle_id = write_bundle_manifest(bundle)
+        import_bundles(self.database, [bundle])
+        page = self.browser.new_page()
+        self.addCleanup(page.close)
+        external = []
+        def prevent_request(route):
+            external.append(route.request.url)
+            route.abort()
+        page.route("https://example.invalid/**", prevent_request)
+        with page.expect_event("console", predicate=lambda message: "frame-src" in message.text):
+            page.goto(self.base + "/reports/" + bundle_id)
+        self.assertEqual(external, [])

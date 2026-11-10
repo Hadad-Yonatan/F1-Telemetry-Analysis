@@ -78,6 +78,15 @@ class LibraryWebTests(unittest.TestCase):
         self.assertEqual(response.data, raw)
         self.assertIn("sandbox allow-scripts", response.headers["Content-Security-Policy"])
         self.assertNotIn("allow-same-origin", response.headers["Content-Security-Policy"])
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        preview = self.client.get(f"/reports/{self.bundle_id}")
+        self.assertIn("frame-src 'self'", preview.headers["Content-Security-Policy"])
+        self.assertIn(b'<iframe', preview.data)
+        frame = self.client.get(self.artifacts + "/report.html?embed=1", headers={
+            "Sec-Fetch-Dest": "iframe", "Sec-Fetch-Site": "same-origin",
+        })
+        self.assertNotIn("Content-Disposition", frame.headers)
+        self.assertEqual(frame.data, raw)
         self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
         for path in ("bundle.json", "../sample.f1cap", "%2e%2e%2fsample.f1cap", "not-listed.html"):
             self.assertEqual(self.client.get(self.artifacts + "/" + path).status_code, 404)
@@ -88,6 +97,17 @@ class LibraryWebTests(unittest.TestCase):
         external.write_bytes(raw)
         report.symlink_to(external)
         self.assertEqual(self.client.get(self.artifacts + "/report.html").status_code, 404)
+
+    def test_legacy_metadata_remains_visible_without_artifact_links(self):
+        legacy = write_fixture(self.root, "legacy", reference=1)
+        (legacy / "bundle.json").unlink()
+        legacy_id = verify_bundle(legacy).bundle_id
+        import_bundles(self.db, [legacy])
+        metadata = self.client.get(f"/api/v1/sessions/{legacy_id}/artifacts").json["data"]
+        self.assertTrue(metadata)
+        self.assertTrue(all(row["url"] is None for row in metadata))
+        self.assertEqual(self.client.get(f"/reports/{legacy_id}").status_code, 404)
+        self.assertEqual(self.client.get(f"/artifacts/{legacy_id}/report.html").status_code, 404)
 
     def test_serve_refuses_non_loopback_and_invalid_port(self):
         with contextlib.redirect_stderr(io.StringIO()) as err:

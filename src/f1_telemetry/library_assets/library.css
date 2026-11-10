@@ -26,3 +26,4 @@ th, td { text-align: left; border-bottom: 1px solid var(--line); padding: .5rem 
 dt { font-weight: 600; }
 dd { margin: 0; overflow-wrap: anywhere; }
 pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.report-frame { width: 100%; min-height: 75vh; border: 1px solid var(--line); border-radius: .4rem; }

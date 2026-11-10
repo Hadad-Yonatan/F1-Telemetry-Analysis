@@ -38,7 +38,7 @@ _PAGE_CSP = "default-src 'none'; style-src 'self'; form-action 'self'; base-uri 
 _ARTIFACT_CSP = (
     "sandbox allow-scripts allow-downloads; default-src 'none'; connect-src 'none'; "
     "script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; "
-    "object-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'"
+    "object-src 'none'; frame-ancestors 'self'; form-action 'none'; base-uri 'none'"
 )
 
 
@@ -274,7 +274,7 @@ def create_app(database: str | Path) -> Flask:
 
     @app.get("/api/v1/sessions/<bundle_id>/<collection>")
     def api_collection(bundle_id, collection):
-        session_or_404(bundle_id)
+        session = session_or_404(bundle_id)
         if collection == "laps":
             return api([asdict(lap) for lap in service.list_laps(bundle_id)])
         if collection == "comparisons":
@@ -283,7 +283,10 @@ def create_app(database: str | Path) -> Flask:
             return api(service.list_corners(bundle_id))
         if collection == "artifacts":
             return api([
-                {**asdict(item), "url": url_for("artifact", bundle_id=bundle_id, name=item.path)}
+                {**asdict(item), "url": (
+                    url_for("artifact", bundle_id=bundle_id, name=item.path)
+                    if session.summary.manifested else None
+                )}
                 for item in service.list_artifacts(bundle_id)
             ])
         abort(404)
@@ -295,16 +298,33 @@ def create_app(database: str | Path) -> Flask:
             abort(404)
         return api(service.list_regions(bundle_id, number))
 
+    @app.get("/reports/<bundle_id>")
+    def report_page(bundle_id):
+        bundle_id = _id(bundle_id)
+        if service.get_artifact(bundle_id, "report.html", manifested_only=True) is None:
+            abort(404)
+        response = app.make_response(render_template("report_frame.html", bundle_id=bundle_id))
+        response.headers["Content-Security-Policy"] = _PAGE_CSP + "; frame-src 'self'"
+        return response
+
     @app.get("/artifacts/<bundle_id>/<name>")
     def artifact(bundle_id, name):
         mime_type = _MIME_TYPES.get(Path(name).suffix)
         if mime_type is None or _BASENAME.fullmatch(name) is None:
             abort(404)
-        entry = service.get_artifact(_id(bundle_id), name)
+        entry = service.get_artifact(_id(bundle_id), name, manifested_only=True)
         if entry is None:
             abort(404)
         response = Response(_artifact_bytes(entry, name), content_type=mime_type)
         response.headers["Content-Security-Policy"] = _ARTIFACT_CSP
+        # Executable artifacts are downloads except for the verified report frame.
+        inline_report = (
+            name == "report.html" and request.args.get("embed") == "1"
+            and request.headers.get("Sec-Fetch-Dest") == "iframe"
+            and request.headers.get("Sec-Fetch-Site") == "same-origin"
+        )
+        if name.endswith((".html", ".svg")) and not inline_report:
+            response.headers["Content-Disposition"] = f'attachment; filename="{name}"'
         return response
 
     return app

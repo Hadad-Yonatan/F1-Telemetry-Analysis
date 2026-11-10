@@ -29,6 +29,9 @@
 {% endfor %}</ul>{% else %}<p>No indexed corner definition for this layout.</p>{% endif %}
 <h2>Bundle files</h2>
 <ul>{% for file in artifacts %}
-  <li><a href="{{ url_for('artifact', bundle_id=item.bundle_id, name=file.path) }}">{{ 'Open standalone report' if file.path == 'report.html' else file.path }}</a></li>
+  <li>{% if not item.manifested %}{{ file.path }}{% elif file.path == 'report.html' %}
+    <a href="{{ url_for('report_page', bundle_id=item.bundle_id) }}">Open standalone report</a>
+  {% else %}<a href="{{ url_for('artifact', bundle_id=item.bundle_id, name=file.path) }}">{{ file.path }}</a>{% endif %}</li>
 {% endfor %}</ul>
+{% if not item.manifested %}<p>Legacy bundle files can be opened from disk. Regenerate the bundle with a manifest to open them here.</p>{% endif %}
 {% endblock %}

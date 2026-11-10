@@ -72,6 +72,9 @@ details are at `/api/v1/setups/<fingerprint>`. JSON responses include
 `schema_version: 1`; UID and capture nanoseconds remain decimal strings.
 
 Files at `/artifacts/<bundle-id>/<name>` must match the indexed path, size,
-and hash. Symlinks are refused and a file that changed after import is
+and hash from a verified manifest. Legacy bundle metadata remains available
+without HTTP file links. Symlinks are refused and a file that changed after import is
 unavailable until the source is restored or the library rebuilt. Standalone
-HTML reports run in a sandbox without same-origin access or network requests.
+HTML reports open in a sandboxed frame without same-origin access. The history
+page restricts report frame navigation to the local origin. Direct HTML and
+SVG artifact requests download the files.
