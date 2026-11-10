@@ -25,6 +25,7 @@ f1-telemetry-normalize = "f1_telemetry.normalize:main"
 f1-telemetry-analyze = "f1_telemetry.lap_analysis:main"
 f1-telemetry-plot = "f1_telemetry.plot:main"
 f1-telemetry-validate = "f1_telemetry.validation:main"
+f1-telemetry-library = "f1_telemetry.library:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

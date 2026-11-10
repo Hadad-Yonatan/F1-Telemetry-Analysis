@@ -284,6 +284,7 @@ class AnalysisSelectionTests(unittest.TestCase):
         write_analysis_bundle(result, second)
 
         expected_names = {
+            "bundle.json",
             "analysis.json",
             "report.html",
             "report.md",

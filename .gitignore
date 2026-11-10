@@ -16,4 +16,14 @@ data/*
 data/samples/*
 !data/samples/.gitkeep
 *.f1cap
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite3-journal
+*.sqlite-wal
+*.sqlite3-wal
+*.sqlite-shm
+*.sqlite3-shm
+.*.sqlite.lock
+.*.sqlite3.lock
 
