@@ -12,6 +12,7 @@ from typing import Generic, TypeVar
 from f1_telemetry.bundle import Artifact, digest_value, integer_value
 from f1_telemetry.library import DEFAULT_DATABASE, open_database
 from f1_telemetry.library_consistency import read_consistency
+from f1_telemetry.library_motion import read_motion
 
 
 _MAX_SQLITE_INTEGER = (1 << 63) - 1
@@ -230,6 +231,12 @@ class LibraryService:
         with closing(open_database(self.database)) as connection:
             connection.execute("BEGIN")
             return read_consistency(connection, bundle_id)
+
+    def get_motion(self, bundle_id: str) -> dict | None:
+        bundle_id = digest_value(bundle_id, "bundle ID")
+        with closing(open_database(self.database)) as connection:
+            connection.execute("BEGIN")
+            return read_motion(connection, bundle_id)
 
     def list_laps(self, bundle_id: str) -> tuple[LapEntry, ...]:
         rows = self._rows(

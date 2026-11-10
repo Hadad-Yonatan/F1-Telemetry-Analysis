@@ -25,10 +25,12 @@ from f1_telemetry.bundle import (
 )
 from f1_telemetry.consistency import CONSISTENCY_FILENAME
 from f1_telemetry.library_consistency import CONSISTENCY_SCHEMA, index_consistency, read_consistency
+from f1_telemetry.library_motion import MOTION_LIBRARY_SCHEMA, index_motion, motion_projection, read_motion
+from f1_telemetry.motion_analysis import MOTION_FILENAME
 
 DEFAULT_DATABASE = Path("data/library/telemetry.sqlite3")
 DEFAULT_BUNDLE_ROOT = Path("data/analysis")
-DATABASE_VERSION = 2
+DATABASE_VERSION = 3
 _APPLICATION_ID = 0x4631544C  # F1TL
 
 _SCHEMA = """
@@ -177,7 +179,7 @@ def _initialize(database: Path) -> None:
         staged = Path(scratch) / "library.sqlite3"
         with closing(sqlite3.connect(staged)) as connection:
             connection.executescript(
-                f"BEGIN; {_SCHEMA} {CONSISTENCY_SCHEMA} PRAGMA application_id={_APPLICATION_ID}; "
+                f"BEGIN; {_SCHEMA} {CONSISTENCY_SCHEMA} {MOTION_LIBRARY_SCHEMA} PRAGMA application_id={_APPLICATION_ID}; "
                 f"PRAGMA user_version={DATABASE_VERSION}; COMMIT;"
             )
         # Link the finished database without overwriting a concurrently created destination.
@@ -187,20 +189,29 @@ def _initialize(database: Path) -> None:
 def _begin_library_write(connection: sqlite3.Connection) -> None:
     """Start the write transaction, keeping any migration inside it."""
     version = _check_version(connection, allow_previous=True)
-    if version == 1:
-        connection.executescript("BEGIN IMMEDIATE; " + CONSISTENCY_SCHEMA)
+    if version == DATABASE_VERSION:
+        connection.execute("BEGIN IMMEDIATE")
+        return
+    schema = CONSISTENCY_SCHEMA if version == 1 else ""
+    connection.executescript("BEGIN IMMEDIATE; " + schema + MOTION_LIBRARY_SCHEMA)
+    upgrades = [
+        (2, CONSISTENCY_FILENAME, "consistency", index_consistency),
+        (3, MOTION_FILENAME, "motion", index_motion),
+    ]
+    for target, filename, attribute, index_result in upgrades:
+        if version >= target:
+            continue
         rows = connection.execute(
             "SELECT b.bundle_id, b.root, b.manifested FROM bundles AS b JOIN artifacts USING (bundle_id) "
-            "WHERE artifacts.path=? ORDER BY b.bundle_id", (CONSISTENCY_FILENAME,),
+            "WHERE artifacts.path=? ORDER BY b.bundle_id", (filename,),
         ).fetchall()
         for bundle_id, root, manifested in rows:
             bundle = _verify_indexed_bundle(connection, bundle_id, root, manifested)
-            if bundle.consistency is None:
-                raise LibraryError(f"missing verified consistency result: {bundle_id}")
-            index_consistency(connection, bundle_id, bundle.consistency, bundle.document)
-        connection.execute("PRAGMA user_version=2")
-    else:
-        connection.execute("BEGIN IMMEDIATE")
+            result = getattr(bundle, attribute)
+            if result is None:
+                raise LibraryError(f"missing verified {attribute} result: {bundle_id}")
+            index_result(connection, bundle_id, result, bundle.document)
+    connection.execute(f"PRAGMA user_version={DATABASE_VERSION}")
 
 
 def init_library(path: str | Path = DEFAULT_DATABASE) -> None:
@@ -370,6 +381,8 @@ def _index_bundle(connection: sqlite3.Connection, bundle: VerifiedBundle) -> boo
                     ))
     if bundle.consistency is not None:
         index_consistency(connection, bundle_id, bundle.consistency, doc)
+    if bundle.motion is not None:
+        index_motion(connection, bundle_id, bundle.motion, doc)
     return True
 
 
@@ -442,6 +455,9 @@ def verify_library(path: str | Path = DEFAULT_DATABASE) -> int:
             bundle = _verify_indexed_bundle(connection, bundle_id, root, manifested)
             if read_consistency(connection, bundle_id) != bundle.consistency:
                 raise LibraryError(f"indexed consistency changed: {bundle_id}")
+            projection = motion_projection(bundle.motion, bundle.document) if bundle.motion is not None else None
+            if read_motion(connection, bundle_id) != projection:
+                raise LibraryError(f"indexed motion changed: {bundle_id}")
             count += 1
         return count
 

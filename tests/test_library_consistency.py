@@ -31,7 +31,7 @@ class LibraryConsistencyTests(unittest.TestCase):
         # before it knew about the consistency-specific tables.
         with closing(sqlite3.connect(self.db)) as connection, connection:
             tables = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'consistency_%'"
+                "SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'consistency_%' OR name LIKE 'motion_%')"
             ).fetchall()
             for name, in tables:
                 connection.execute(f'DROP TABLE "{name}"')

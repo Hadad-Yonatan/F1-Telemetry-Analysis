@@ -5,12 +5,14 @@ from __future__ import annotations
 import base64
 import html
 import json
+from dataclasses import asdict
 from importlib import resources
 from pathlib import Path
 
 from f1_telemetry.consistency import ConsistencyResult, Distribution
 from f1_telemetry.corner_catalog import format_corner_label
 from f1_telemetry.lap_analysis import AnalysisResult, LapComparison, ResampledLap
+from f1_telemetry.motion_analysis import MotionResult
 from f1_telemetry.report import comparison_stem
 
 REPORT_VERSION = 1
@@ -100,7 +102,7 @@ def _report_payload(
             for comparison_index, comparison in enumerate(result.comparisons)
         ],
     }
-    return {
+    output = {
         "report_version": REPORT_VERSION,
         "analysis": document,
         "presentation": presentation,
@@ -112,6 +114,18 @@ def _report_payload(
             ],
         },
     }
+    if result.motion is not None:
+        selected = {comparison.comparison_lap for comparison in result.comparisons}
+        output["motion"] = {
+            "reference_lap": result.motion.reference_lap,
+            "positions": [
+                {"lap_number": lap.lap_number, "points": lap.positions_m, "break_before": lap.break_before}
+                for lap in result.motion.laps
+                if lap.lap_number == result.motion.reference_lap or lap.lap_number in selected
+            ],
+            "summaries": [asdict(summary) for summary in result.motion.comparisons if summary.lap_number in selected],
+        }
+    return output
 
 
 def _safe_json(document: dict[str, object]) -> str:
@@ -186,6 +200,39 @@ def _consistency_section(result: ConsistencyResult | None) -> str:
         f'<p>{len(result.laps)} eligible laps · method {html.escape(result.method_version)}.</p>'
         f"{content}</section>"
     )
+
+
+def _motion_section(result: MotionResult | None) -> str:
+    if result is None:
+        return ""
+    if result.transform is None:
+        map_content = "<p>Track map unavailable: no usable reference timing-line anchor.</p>"
+    else:
+        map_content = '''
+        <p>Reference and selected comparison are distance-aligned. Gaps show missing samples.</p>
+        <p id="motion-map-label"></p>
+        <svg id="motion-map" tabindex="0" role="img"
+             aria-label="Track map. Use arrow keys to move the synchronized cursor and Escape to reset zoom."
+             viewBox="0 0 1 1"></svg>'''
+    note = "" if result.status == "available" else "<p>No shared valid motion samples.</p>"
+    return f'''
+    <section class="summary-card" aria-labelledby="motion-heading">
+      <h2 id="motion-heading">Motion and track map</h2>
+      <p>Reference: retained driving line from lap {result.reference_lap}.
+        <a href="motion.json">Motion JSON</a> · <a href="track-map.svg">Track map SVG</a>
+      </p>
+      {map_content}
+      {note}
+      <details>
+        <summary>Shared-sample dynamics</summary>
+        <div class="table-scroll"><table>
+          <caption>Paired medians on the same valid distances</caption>
+          <thead><tr><th scope="col">Metric</th><th scope="col">Samples</th><th scope="col">Reference</th>
+            <th scope="col">Comparison</th><th scope="col">Paired difference</th></tr></thead>
+          <tbody id="motion-summary"></tbody>
+        </table></div>
+      </details>
+    </section>'''
 
 
 def render_html_report(
@@ -271,6 +318,8 @@ def render_html_report(
     </section>
 
     {_consistency_section(result.consistency)}
+
+    {_motion_section(result.motion)}
 
     <section class="comparison-summary" aria-labelledby="comparison-heading">
       <div>

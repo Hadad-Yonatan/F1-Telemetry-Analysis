@@ -193,6 +193,7 @@ def create_app(database: str | Path) -> Flask:
             "session.html", session=session, laps=service.list_laps(bundle_id),
             comparisons=service.list_comparisons(bundle_id), corners=service.list_corners(bundle_id),
             artifacts=service.list_artifacts(bundle_id), consistency=service.get_consistency(bundle_id),
+            motion=service.get_motion(bundle_id),
         )
 
     @app.get("/api/v1/sessions/<bundle_id>/laps/<int:number>")
@@ -281,6 +282,14 @@ def create_app(database: str | Path) -> Flask:
         if consistency is None:
             abort(404, description="No indexed consistency result for this bundle.")
         return api(consistency)
+
+    @app.get("/api/v1/sessions/<bundle_id>/motion")
+    def api_motion(bundle_id):
+        session_or_404(bundle_id)
+        motion = service.get_motion(bundle_id)
+        if motion is None:
+            abort(404, description="No indexed motion result for this bundle.")
+        return api(motion)
 
     @app.get("/api/v1/sessions/<bundle_id>/<collection>")
     def api_collection(bundle_id, collection):

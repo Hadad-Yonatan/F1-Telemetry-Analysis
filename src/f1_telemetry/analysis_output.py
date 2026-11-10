@@ -21,6 +21,8 @@ from f1_telemetry.lap_analysis import (
     LossRegion,
     PreparedSession,
 )
+from f1_telemetry.motion_analysis import MOTION_FILENAME, TRACK_MAP_FILENAME
+from f1_telemetry.motion_render import track_map_svg
 from f1_telemetry.plot import write_comparison_svg
 from f1_telemetry.report import comparison_stem, write_markdown_report
 from f1_telemetry.session_context import context_document
@@ -262,10 +264,18 @@ def _comparison_document(comparison: LapComparison) -> dict[str, object]:
 def analysis_document(result: AnalysisResult) -> dict[str, object]:
     """Return the canonical, deterministically rounded analysis document."""
     raw = result.consistency.json_bytes() if result.consistency is not None else None
-    return _analysis_document(result, raw)
+    return _analysis_document(result, raw, _motion_artifacts(result))
 
 
-def _analysis_document(result: AnalysisResult, consistency: bytes | None) -> dict[str, object]:
+def _motion_artifacts(result: AnalysisResult) -> tuple[bytes, bytes] | None:
+    if result.motion is None:
+        return None
+    return result.motion.json_bytes(), track_map_svg(result.motion, {comparison.comparison_lap for comparison in result.comparisons})
+
+
+def _analysis_document(
+    result: AnalysisResult, consistency: bytes | None, motion: tuple[bytes, bytes] | None,
+) -> dict[str, object]:
     config = result.config
     discarded_by_lap = {
         lap.lap_number: lap.discarded_attempt_frames for lap in result.session.laps
@@ -400,6 +410,8 @@ def _analysis_document(result: AnalysisResult, consistency: bytes | None) -> dic
     }
     if consistency is not None and result.consistency is not None:
         document["consistency"] = result.consistency.descriptor(consistency)
+    if motion is not None and result.motion is not None:
+        document["motion"] = result.motion.descriptor(*motion)
     return document
 
 
@@ -463,11 +475,16 @@ def write_analysis_bundle(
     )
     try:
         consistency = result.consistency.json_bytes() if result.consistency is not None else None
-        document = _analysis_document(result, consistency)
+        motion = _motion_artifacts(result)
+        document = _analysis_document(result, consistency, motion)
         _write_json(document, temporary / "analysis.json")
         if consistency is not None:
             with (temporary / CONSISTENCY_FILENAME).open("xb") as file:
                 file.write(consistency)
+        if motion is not None:
+            for name, raw in zip((MOTION_FILENAME, TRACK_MAP_FILENAME), motion, strict=True):
+                with (temporary / name).open("xb") as file:
+                    file.write(raw)
         report_writer(result, temporary / "report.md")
         html_writer(result, document, temporary / "report.html")
         for comparison in result.comparisons:

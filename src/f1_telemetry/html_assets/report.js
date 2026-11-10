@@ -35,6 +35,11 @@
   const chartStack = document.getElementById("chart-stack");
   const regionList = document.getElementById("regions");
   const resetButton = document.getElementById("reset-zoom");
+  const motionMap = document.getElementById("motion-map");
+  const motionSummary = document.getElementById("motion-summary");
+  const motionPositions = new Map((payload.motion?.positions ?? []).map((lap) => [lap.lap_number, lap]));
+  const motionSummaries = new Map((payload.motion?.summaries ?? []).map((lap) => [lap.lap_number, lap.shared_metrics]));
+  let motionViewKey = "";
 
   function appendDefinition(list, term, value) {
     const container = document.createElement("div");
@@ -361,7 +366,116 @@
     chartStack.dataset.cursorDistance = distances[state.cursorIndex].toFixed(3);
     document.querySelectorAll(".telemetry-chart").forEach(renderChart);
     renderCursorValues();
+    renderMotionMap();
   }
+
+  function renderMotionSummary() {
+    if (!motionSummary) return;
+    motionSummary.replaceChildren();
+    for (const item of motionSummaries.get(state.comparisonLap) ?? []) {
+      const row = document.createElement("tr");
+      const values = [item.metric.replaceAll("_", " "), String(item.count),
+        ...["reference", "comparison", "difference"].map((key) => item[key]?.median.toFixed(4) ?? "—")];
+      values.forEach((value, column) => {
+        const cell = document.createElement(column === 0 ? "th" : "td");
+        if (column === 0) cell.scope = "row";
+        cell.textContent = value;
+        row.append(cell);
+      });
+      motionSummary.append(row);
+    }
+  }
+
+  function mapRange() {
+    const last = lowerBound(state.rangeEnd);
+    return [lowerBound(state.rangeStart), last + Number(distances[last] === state.rangeEnd)];
+  }
+
+  function mapPath(lap, start, end) {
+    let result = "";
+    let started = false;
+    for (let index = start; index < end; index += 1) {
+      const point = lap.points[index];
+      if (!point) {
+        started = false;
+        continue;
+      }
+      const connected = started && !lap.break_before[index];
+      result += `${connected ? " L" : " M"}${point[0]},${-point[1]}`;
+      started = true;
+    }
+    return result;
+  }
+
+  function renderMotionMap() {
+    if (!motionMap) return;
+    const [start, end] = mapRange();
+    const referenceLap = motionPositions.get(payload.motion.reference_lap);
+    const comparisonLap = motionPositions.get(state.comparisonLap);
+    const referencePoints = referenceLap?.points;
+    const comparisonPoints = comparisonLap?.points;
+    const key = `${state.comparisonLap}/${start}/${end}`;
+    if (key !== motionViewKey) {
+      motionViewKey = key;
+      motionMap.replaceChildren();
+      let lowX = Infinity, lowY = Infinity, highX = -Infinity, highY = -Infinity;
+      for (const points of [referencePoints, comparisonPoints]) {
+        if (!points) continue;
+        for (const point of points.slice(start, end)) {
+          if (!point) continue;
+          lowX = Math.min(lowX, point[0]); highX = Math.max(highX, point[0]);
+          lowY = Math.min(lowY, -point[1]); highY = Math.max(highY, -point[1]);
+        }
+      }
+      if (!Number.isFinite(lowX)) [lowX, lowY, highX, highY] = [0, 0, 1, 1];
+      const margin = Math.max(1, 0.06 * Math.max(highX - lowX, highY - lowY));
+      motionMap.setAttribute("viewBox", [lowX - margin, lowY - margin,
+        highX - lowX + 2 * margin, highY - lowY + 2 * margin].join(" "));
+      for (const [role, lap] of [["reference", referenceLap], ["comparison", comparisonLap]]) {
+        if (!lap) continue;
+        motionMap.append(svgNode(motionMap, "path", {d: mapPath(lap, start, end), class: `map-${role}`}));
+        motionMap.append(svgNode(motionMap, "circle", {r: margin / 7, class: `map-marker map-marker-${role}`,
+          "data-map-marker": role}));
+      }
+      motionMap.dataset.comparisonLap = String(state.comparisonLap);
+    }
+    motionMap.dataset.rangeStart = state.rangeStart.toFixed(3);
+    motionMap.dataset.rangeEnd = state.rangeEnd.toFixed(3);
+    const index = state.cursorIndex;
+    let markers = 0;
+    for (const [role, points] of [["reference", referencePoints], ["comparison", comparisonPoints]]) {
+      const marker = motionMap.querySelector(`[data-map-marker="${role}"]`);
+      if (!marker) continue;
+      const point = index >= start && index < end ? points?.[index] : null;
+      marker.style.display = point ? "" : "none";
+      if (point) {
+        marker.setAttribute("cx", point[0]);
+        marker.setAttribute("cy", -point[1]);
+        markers += 1;
+      }
+    }
+    motionMap.dataset.cursorDistance = distances[index].toFixed(3);
+    document.getElementById("motion-map-label").textContent =
+      `Reference lap ${payload.motion.reference_lap} · Comparison lap ${state.comparisonLap} · ${distances[index].toFixed(3)} m`
+      + (markers ? "" : " · No map position at the cursor");
+  }
+
+  motionMap?.addEventListener("pointermove", (event) => {
+    const matrix = motionMap.getScreenCTM();
+    if (!matrix) return;
+    const cursor = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+    const [start, end] = mapRange();
+    const referencePoints = motionPositions.get(payload.motion.reference_lap)?.points;
+    let nearest = null;
+    let best = Infinity;
+    for (let index = start; index < end; index += 1) {
+      const point = referencePoints?.[index];
+      if (!point) continue;
+      const distance = (cursor.x - point[0]) ** 2 + (cursor.y + point[1]) ** 2;
+      if (distance < best) { best = distance; nearest = index; }
+    }
+    if (nearest !== null && nearest !== state.cursorIndex) setCursor(distances[nearest]);
+  });
 
   function displayValue(channel, value) {
     if (channel === "gear") return String(value);
@@ -419,6 +533,7 @@
     state.cursorIndex = nearestIndex(distance);
     chartStack.dataset.cursorDistance = distances[state.cursorIndex].toFixed(3);
     renderCursorValues();
+    renderMotionMap();
   }
 
   document.querySelectorAll(".telemetry-chart").forEach((svg) => {
@@ -454,20 +569,28 @@
     svg.addEventListener("pointercancel", () => { state.drag = null; });
   });
 
-  chartStack.addEventListener("keydown", (event) => {
-    let targetDistance = distances[state.cursorIndex];
-    if (event.key === "ArrowLeft") targetDistance -= event.shiftKey ? 10 : 1;
-    else if (event.key === "ArrowRight") targetDistance += event.shiftKey ? 10 : 1;
-    else if (event.key === "Home") targetDistance = distances[0];
-    else if (event.key === "End") targetDistance = distances[distances.length - 1];
+  function moveCursorByKey(event) {
+    const [start, end] = mapRange();
+    let targetIndex = state.cursorIndex;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      targetIndex += direction;
+      if (event.shiftKey) {
+        const jump = nearestIndex(distances[state.cursorIndex] + direction * 10);
+        targetIndex = direction > 0 ? Math.max(targetIndex, jump) : Math.min(targetIndex, jump);
+      }
+    } else if (event.key === "Home") targetIndex = start;
+    else if (event.key === "End") targetIndex = end - 1;
     else if (event.key === "Escape") {
       event.preventDefault();
       resetView();
       return;
     } else return;
     event.preventDefault();
-    setCursor(Math.min(distances[distances.length - 1], Math.max(distances[0], targetDistance)));
-  });
+    if (start < end) setCursor(distances[Math.min(end - 1, Math.max(start, targetIndex))]);
+  }
+  chartStack.addEventListener("keydown", moveCursorByKey);
+  motionMap?.addEventListener("keydown", moveCursorByKey);
 
   regionList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-region-index]");
@@ -490,6 +613,7 @@
     state.cursorIndex = 0;
     state.selectedRegion = null;
     renderComparisonSummary();
+    renderMotionSummary();
     renderRegions();
     renderCharts();
   });
@@ -503,6 +627,7 @@
 
   initializeIdentity();
   renderComparisonSummary();
+  renderMotionSummary();
   renderRegions();
   renderCharts();
 })();

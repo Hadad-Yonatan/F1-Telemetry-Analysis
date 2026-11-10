@@ -51,6 +51,35 @@
 {% else %}<p>Unavailable: at least three eligible laps are required.</p>{% endif %}
 {% endif %}
 </section>
+<section aria-labelledby="motion-heading">
+<h2 id="motion-heading">Motion and track map</h2>
+{% if motion is none %}
+<p>Not indexed for this bundle.</p>
+{% else %}
+<p>Reference: retained driving line from lap {{ motion.reference_lap }} · method {{ motion.method_version }}.
+  <a href="{{ url_for('api_motion', bundle_id=item.bundle_id) }}">Motion API data</a>
+</p>
+<p>{{ motion.coverage.joined_both }} exact frames include both optional streams.</p>
+{% if motion.transform is none %}<p>No usable reference timing-line anchor.</p>{% endif %}
+{% if motion.status == 'available' %}
+  {% for comparison in motion.comparisons %}
+  <details><summary>Motion for lap {{ comparison.lap_number }}</summary>
+    <div class="scroll"><table>
+      <caption>Paired medians on the same valid distances</caption>
+      <thead><tr><th scope="col">Metric</th><th scope="col">Samples</th><th scope="col">Reference</th>
+      <th scope="col">Comparison</th><th scope="col">Paired difference</th></tr></thead>
+      <tbody>{% for metric in comparison.shared_metrics %}
+      <tr><th scope="row">{{ metric.metric|replace('_', ' ') }}</th><td>{{ metric.count }}</td>
+        {% for key in ('reference', 'comparison', 'difference') %}
+        <td>{{ '%.4f'|format(metric[key].median) if metric[key] is not none else '—' }}</td>
+        {% endfor %}</tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </details>
+  {% endfor %}
+{% else %}<p>No shared valid motion samples.</p>{% endif %}
+{% endif %}
+</section>
 <h2>Comparisons</h2>
 <ul>{% for comparison in comparisons %}
   <li><a href="{{ url_for('comparison_detail', bundle_id=item.bundle_id, number=comparison.comparison_lap) }}">Lap {{ comparison.comparison_lap }} vs {{ comparison.reference_lap }}</a></li>

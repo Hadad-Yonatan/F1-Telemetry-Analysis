@@ -15,17 +15,19 @@ columns, ordered finite samples, and the expected finish distance and delta.
 Their current artifact hashes are saved at first import; there is no
 pre-import hash evidence for legacy artifacts.
 
-`f1-telemetry-library init` creates the current SQLite schema (2) and is
-safe to repeat. It also migrates schema 1 in a transaction. Migration
-retains existing rows and backfills consistency from verified bundles
-that already registered the artifact. A failed backfill leaves schema 1
-intact. `import` also upgrades an existing index when needed.
+`f1-telemetry-library init` creates the current SQLite schema (3) and is
+safe to repeat. It also migrates older schemas in a transaction. Migration
+retains existing rows and backfills consistency or motion from verified
+bundles that already registered the corresponding artifact. A failed
+backfill leaves the previous schema intact. `import` also upgrades an
+existing index when needed, in the same transaction as the import.
 `import BUNDLE...` verifies the requested bundles and indexes them in one
 transaction. A repeated identity with the same artifact hashes is a no-op;
 the same identity with different artifacts is an error. The database keeps
 an absolute bundle root and relative artifact names, plus indexed sessions,
 captures, laps, setups, comparisons, regions, events, corner associations,
-and normalized consistency samples and summaries.
+normalized consistency samples and summaries, and Motion coverage and
+paired summaries.
 It stores no capture or report bytes. F1 session UIDs use unsigned decimal
 text, so even the largest valid UID is stored exactly.
 
@@ -80,6 +82,8 @@ Comparison regions are under `comparisons/<lap-number>/regions`; setup
 details are at `/api/v1/setups/<fingerprint>`. The `consistency` detail
 under a session returns the indexed result, including raw lap and corner
 samples and trend inputs; it returns 404 for a bundle with no such result.
+The `motion` detail returns indexed coverage and paired motion summaries;
+raw traces remain in the bundle. It returns 404 when motion was not indexed.
 JSON responses include
 `schema_version: 1`; UID and capture nanoseconds remain decimal strings.
 
