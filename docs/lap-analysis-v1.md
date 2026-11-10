@@ -149,6 +149,8 @@ With `--output-dir`, the analyzer creates a new directory containing:
   identity, the selected track definition, per-region corner IDs, and the
   consistency artifact's path, versions, availability, and SHA-256;
 - `consistency.json`, with the result for every eligible lap (see below);
+- `motion.json` and `track-map.svg`, when [Motion analysis](motion-analysis-v1.md)
+  is enabled, with shared-sample dynamics and the aligned reference map;
 - `report.md`, with lap eligibility, every ranked loss region, sector and
   distance and corner context, factual event observations, and relative links
   to traces and plots;

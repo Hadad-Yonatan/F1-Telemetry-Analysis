@@ -11,6 +11,7 @@ from statistics import fmean
 from typing import Sequence
 
 from f1_telemetry.capture_format import iter_capture, read_capture_header
+from f1_telemetry.composite_motion import normalize_composite_capture
 from f1_telemetry.consistency import ConsistencyResult, analyze_consistency
 from f1_telemetry.corner_catalog import (
     DEFAULT_CORNER_CATALOG,
@@ -45,6 +46,7 @@ from f1_telemetry.normalize import (
     NormalizedSample,
     normalize_capture,
 )
+from f1_telemetry.motion_analysis import MotionMode, MotionResult, analyze_motion, require_motion, retain_motion_inputs
 from f1_telemetry.probe import parse_header_prefix
 from f1_telemetry.session_context import ContextCollector, SessionContext
 
@@ -269,6 +271,7 @@ class AnalysisResult:
     comparisons: tuple[LapComparison, ...]
     catalog_selection: CatalogSelection
     consistency: ConsistencyResult | None = None
+    motion: MotionResult | None = None
 
     @property
     def session_context(self) -> SessionContext | None:
@@ -771,10 +774,16 @@ def analyze_capture(
     reference_lap: int | None = None,
     comparison_laps: Sequence[int] | None = None,
     corner_catalog: CornerCatalog | None = DEFAULT_CORNER_CATALOG,
+    motion: MotionMode = "off",
 ) -> AnalysisResult:
     """Return the complete deterministic analysis for one capture."""
     capture_path = Path(path)
-    session = prepare_session(capture_path)
+    if motion not in ("auto", "required", "off"):
+        raise ValueError("motion must be auto, required, or off")
+    composite = normalize_composite_capture(capture_path) if motion != "off" else None
+    session = (
+        prepare_session(capture_path, normalized=composite.core) if composite is not None else prepare_session(capture_path)
+    )
     if not session.laps:
         raise ValueError("capture has no eligible laps")
     catalog_selection = (
@@ -817,6 +826,10 @@ def analyze_capture(
     ):
         raise ValueError("reference and comparison laps must be different")
 
+    motion_inputs = None
+    if composite is not None:
+        motion_inputs = retain_motion_inputs(session, composite, reference_trace.lap_number)
+        del composite
     reference = resample_lap(
         reference_trace,
         session.track_length,
@@ -861,6 +874,12 @@ def analyze_capture(
         known_events[reference_trace.lap_number] = comparison_result.reference_events
         known_events[comparison_trace.lap_number] = comparison_result.comparison_events
 
+    motion_result = None
+    if motion_inputs is not None:
+        motion_result = analyze_motion(session, motion_inputs, reference_trace.lap_number, reference.distance)
+        if motion == "required":
+            require_motion(motion_result, {trace.lap_number for trace in selected_comparisons})
+
     return AnalysisResult(
         config=config,
         capture=_capture_metadata(capture_path),
@@ -869,6 +888,7 @@ def analyze_capture(
         comparisons=tuple(comparisons),
         catalog_selection=catalog_selection,
         consistency=analyze_consistency(session, catalog_selection.track, config, known_events=known_events),
+        motion=motion_result,
     )
 
 
@@ -979,6 +999,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="new directory for the JSON, CSV, and SVG analysis bundle",
     )
+    parser.add_argument(
+        "--motion", choices=("auto", "required", "off"), default="auto",
+        help="attach available motion (default), require both streams, or skip motion",
+    )
     catalog_group = parser.add_mutually_exclusive_group()
     catalog_group.add_argument(
         "--corner-catalog",
@@ -1009,6 +1033,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             reference_lap=args.reference_lap,
             comparison_laps=args.comparison_laps,
             corner_catalog=corner_catalog,
+            motion=args.motion,
         )
         print_analysis(result)
         if args.output_dir is not None:

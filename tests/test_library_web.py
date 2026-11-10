@@ -8,6 +8,7 @@ from pathlib import Path
 from f1_telemetry.bundle import verify_bundle
 from f1_telemetry.library import import_bundles, init_library, main
 from tests.test_library import UID, write_fixture
+from tests.test_motion_analysis import motion_bundle
 
 
 @unittest.skipUnless(find_spec("flask"), "requires the optional library extra")
@@ -74,6 +75,22 @@ class LibraryWebTests(unittest.TestCase):
         self.assertEqual(self.client.get(self.api + "/laps/101").status_code, 404)
         self.assertEqual(self.client.get("/api/v1/sessions", headers={"Host": "example.invalid"}).status_code, 400)
         self.assertEqual(self.client.get("/api/v1/sessions", base_url="http://[::1]:8765").status_code, 200)
+
+    def test_motion_view_reads_index_and_only_downloads_manifested_artifacts(self):
+        self.assertEqual(self.client.get(self.api + "/motion").status_code, 404)
+        bundle = motion_bundle(self.root, "motion")
+        verified = verify_bundle(bundle)
+        import_bundles(self.db, [bundle])
+        before = self.db.read_bytes()
+        response = self.client.get(f"/api/v1/sessions/{verified.bundle_id}/motion")
+        self.assertEqual(response.json["data"]["comparisons"], verified.motion["comparisons"])
+        self.assertNotIn("laps", response.json["data"])
+        session = self.client.get(f"/sessions/{verified.bundle_id}")
+        self.assertIn(b"Motion API data", session.data)
+        response = self.client.get(f"/artifacts/{verified.bundle_id}/track-map.svg")
+        self.assertEqual(response.data, (bundle / "track-map.svg").read_bytes())
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        self.assertEqual(self.db.read_bytes(), before)
 
     def test_artifacts_are_checked_against_index_and_sandboxed(self):
         report = self.bundle / "report.html"

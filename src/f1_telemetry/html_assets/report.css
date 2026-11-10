@@ -204,6 +204,13 @@ th { color: var(--muted); font-size: .82rem; }
 .chart-cursor { stroke: var(--text); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .chart-label { fill: var(--muted); font: 12px "Atkinson Hyperlegible", sans-serif; }
 
+#motion-map { display: block; width: 100%; height: clamp(14rem, 45vw, 25rem); margin-bottom: 1rem; cursor: crosshair; }
+.map-reference, .map-comparison { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-reference { stroke: var(--reference); }
+.map-comparison { stroke: var(--comparison); }
+.map-marker-reference { fill: var(--reference); }
+.map-marker-comparison { fill: var(--comparison); }
+
 .cursor-card { margin-top: 1rem; padding: .8rem; border-radius: .65rem; background: var(--surface-muted); }
 .cursor-distance { margin-bottom: .4rem; font-weight: 700; }
 

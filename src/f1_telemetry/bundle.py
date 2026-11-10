@@ -18,6 +18,7 @@ from f1_telemetry.consistency import (
     CONSISTENCY_METHOD_VERSION,
     CONSISTENCY_SCHEMA_VERSION,
 )
+from f1_telemetry.motion_analysis import MOTION_FILENAME, MOTION_METHOD_VERSION, MOTION_SCHEMA_VERSION, TRACK_MAP_FILENAME
 
 MANIFEST_FILENAME = "bundle.json"
 MANIFEST_SCHEMA_VERSION = 1
@@ -44,6 +45,7 @@ class VerifiedBundle:
     artifacts: tuple[Artifact, ...]
     manifested: bool
     consistency: dict | None = None
+    motion: dict | None = None
 
 
 def _unique_object(items: list[tuple[str, object]]) -> dict[str, object]:
@@ -206,6 +208,13 @@ def _required_artifacts(document: dict[str, object], manifested: bool) -> dict[s
         if descriptor.get("path") != CONSISTENCY_FILENAME:
             raise BundleError("invalid consistency artifact path")
         required[CONSISTENCY_FILENAME] = descriptor
+    if "motion" in document:
+        descriptor = object_value(document["motion"], "motion descriptor")
+        map_descriptor = object_value(descriptor.get("track_map"), "track map descriptor")
+        if descriptor.get("path") != MOTION_FILENAME or map_descriptor.get("path") != TRACK_MAP_FILENAME:
+            raise BundleError("invalid motion artifact path")
+        required[MOTION_FILENAME] = descriptor
+        required[TRACK_MAP_FILENAME] = map_descriptor
     comparisons = array_value(document.get("comparisons"), "comparisons")
     if not comparisons:
         raise BundleError("analysis must include at least one comparison")
@@ -263,6 +272,25 @@ def _verify_legacy_csv(path: Path, comparison: dict, track_length: int) -> None:
         raise BundleError(f"invalid comparison CSV {path.name}: {error}") from error
 
 
+def _verify_json_result(
+    filename: str, name: str, schema: int, method: str, descriptor: dict,
+    files: dict[str, Path], hashes: dict[str, str],
+) -> dict:
+    expected = digest_value(descriptor.get("sha256"), f"{name} SHA-256")
+    raw = _read_artifact(files[filename])
+    if hashes[filename] != expected or hashlib.sha256(raw).hexdigest() != expected:
+        raise BundleError(f"{name} artifact SHA-256 does not match analysis.json")
+    value = _load_object(raw, filename)
+    for item in (descriptor, value):
+        integer_value(item.get("schema_version"), f"{name} schema", schema, schema)
+        if item.get("method_version") != method:
+            raise BundleError(f"unsupported {name} method")
+    status = value.get("status")
+    if status not in ("available", "unavailable") or descriptor.get("status") != status:
+        raise BundleError(f"inconsistent {name} availability")
+    return value
+
+
 def verify_bundle(path: str | Path) -> VerifiedBundle:
     """Verify an exact manifest or the structure of a legacy schema-1 bundle."""
     root = _root(path)
@@ -286,27 +314,22 @@ def verify_bundle(path: str | Path) -> VerifiedBundle:
             if name.endswith(".csv"):
                 _verify_legacy_csv(files[name], comparison, length)
     artifacts = tuple(_artifact(path) for path in files.values())
-    if next(entry.sha256 for entry in artifacts if entry.path == "analysis.json") != bundle_id:
+    hashes = {entry.path: entry.sha256 for entry in artifacts}
+    if hashes["analysis.json"] != bundle_id:
         raise BundleError("analysis.json changed during verification")
     if manifest is not None and artifacts != declared:
         raise BundleError("bundle artifact size or SHA-256 does not match the manifest")
-    consistency = None
+    consistency = motion = None
     if CONSISTENCY_FILENAME in required:
-        descriptor = required[CONSISTENCY_FILENAME]
-        expected = digest_value(descriptor.get("sha256"), "consistency SHA-256")
-        actual = next(entry.sha256 for entry in artifacts if entry.path == CONSISTENCY_FILENAME)
-        raw_consistency = _read_artifact(files[CONSISTENCY_FILENAME])
-        if actual != expected or hashlib.sha256(raw_consistency).hexdigest() != actual:
-            raise BundleError("consistency artifact SHA-256 does not match analysis.json")
-        consistency = _load_object(raw_consistency, CONSISTENCY_FILENAME)
-        for item in (descriptor, consistency):
-            integer_value(
-                item.get("schema_version"), "consistency schema",
-                CONSISTENCY_SCHEMA_VERSION, CONSISTENCY_SCHEMA_VERSION,
-            )
-            if item.get("method_version") != CONSISTENCY_METHOD_VERSION:
-                raise BundleError("unsupported consistency method")
-        status = consistency.get("status")
-        if status not in ("available", "unavailable") or descriptor.get("status") != status:
-            raise BundleError("inconsistent consistency availability")
-    return VerifiedBundle(root, bundle_id, document, artifacts, manifest is not None, consistency)
+        consistency = _verify_json_result(
+            CONSISTENCY_FILENAME, "consistency", CONSISTENCY_SCHEMA_VERSION, CONSISTENCY_METHOD_VERSION,
+            required[CONSISTENCY_FILENAME], files, hashes,
+        )
+    if MOTION_FILENAME in required:
+        motion = _verify_json_result(
+            MOTION_FILENAME, "motion", MOTION_SCHEMA_VERSION, MOTION_METHOD_VERSION,
+            required[MOTION_FILENAME], files, hashes,
+        )
+        if hashes[TRACK_MAP_FILENAME] != digest_value(required[TRACK_MAP_FILENAME].get("sha256"), "track map SHA-256"):
+            raise BundleError("track map SHA-256 does not match analysis.json")
+    return VerifiedBundle(root, bundle_id, document, artifacts, manifest is not None, consistency, motion)

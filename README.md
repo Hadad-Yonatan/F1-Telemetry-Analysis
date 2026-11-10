@@ -131,6 +131,10 @@ PYTHONPATH=src python -m f1_telemetry.plot data/captures/example.f1cap \
 The plot contains aligned speed, delta, throttle, brake, steering, and gear
 panels. Detected time-loss regions are shaded on the delta panel.
 
+The analyzer includes [Motion and track maps](docs/motion-analysis-v1.md)
+when matching packets are available. Use `--motion required` to require
+usable coverage or `--motion off` for core analysis only.
+
 ## Index local analysis history
 
 ```bash
