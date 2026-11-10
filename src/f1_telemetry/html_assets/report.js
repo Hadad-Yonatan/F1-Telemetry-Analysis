@@ -72,6 +72,8 @@
     appendDefinition(summary, "Session UID", payload.presentation.session_uid_label);
     appendDefinition(summary, "Reference", `Lap ${analysis.selected_reference_lap}`);
     appendDefinition(summary, "Algorithm", analysis.algorithm.version);
+    const policy = analysis.session_policy;
+    if (policy) appendDefinition(summary, "Session policy", `${policy.name} (${policy.status}, method ${policy.method_version})`);
     appendDefinition(summary, "Catalog", analysis.corner_catalog.catalog_id || analysis.corner_catalog.status);
     appendDefinition(summary, "Joined samples", analysis.session.normalization.samples_joined);
     appendDefinition(summary, "Decode errors", analysis.session.normalization.decode_errors);

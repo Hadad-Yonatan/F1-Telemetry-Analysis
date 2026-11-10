@@ -49,6 +49,14 @@ from f1_telemetry.normalize import (
 from f1_telemetry.motion_analysis import MotionMode, MotionResult, analyze_motion, require_motion, retain_motion_inputs
 from f1_telemetry.probe import parse_header_prefix
 from f1_telemetry.session_context import ContextCollector, SessionContext
+from f1_telemetry.session_policy import (
+    POLICY_CHOICES,
+    LapDecision,
+    PolicyMode,
+    PolicySelection,
+    TimeTrialPolicy,
+    select_session_policy,
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +108,7 @@ class PreparedSession:
     laps: tuple[LapTrace, ...]
     normalization: NormalizationSummary = NormalizationSummary()
     context: SessionContext | None = None
+    policy: PolicySelection | None = None
 
 
 @dataclass(frozen=True)
@@ -278,14 +287,7 @@ class AnalysisResult:
         return self.session.context
 
 
-def _validation(history: DecodedLapHistory) -> LapValidation:
-    eligible = history.officially_valid and history.structurally_complete
-    if eligible:
-        reason = "eligible"
-    elif not history.structurally_complete:
-        reason = "incomplete"
-    else:
-        reason = "officially invalid"
+def _validation(history: DecodedLapHistory, decision: LapDecision) -> LapValidation:
     return LapValidation(
         lap_number=history.lap_number,
         official_lap_time_ms=history.lap_time_ms,
@@ -297,8 +299,8 @@ def _validation(history: DecodedLapHistory) -> LapValidation:
         validity_flags=history.validity_flags,
         officially_valid=history.officially_valid,
         structurally_complete=history.structurally_complete,
-        eligible=eligible,
-        reason=reason,
+        eligible=decision.eligible,
+        reason=decision.reason,
     )
 
 
@@ -306,6 +308,8 @@ def _resolve_trace(
     samples: list[NormalizedSample],
     validation: LapValidation,
     track_length: int,
+    *,
+    driver_statuses: tuple[int, ...] = TimeTrialPolicy().driver_statuses,
 ) -> LapTrace:
     ordered = sorted(samples, key=lambda sample: sample.overall_frame_identifier)
     # Restart Lap can retain the lap number and keep frame IDs increasing while
@@ -325,7 +329,7 @@ def _resolve_trace(
     candidates = [
         sample
         for sample in ordered
-        if sample.driver_status == 1
+        if sample.driver_status in driver_statuses
         and sample.lap_distance >= 0
         and sample.lap_distance <= track_length + 5
         and sample.current_lap_time_ms <= validation.official_lap_time_ms
@@ -379,6 +383,7 @@ def prepare_session(
     path: str | Path,
     *,
     normalized: NormalizationResult | None = None,
+    session_policy: PolicyMode = "auto",
 ) -> PreparedSession:
     """Build eligible final lap timelines from one capture."""
     if normalized is None:
@@ -419,7 +424,8 @@ def prepare_session(
     if player_history is None:
         raise ValueError("capture has no player Session History packet")
 
-    validations = tuple(_validation(lap) for lap in player_history.laps)
+    active_policy = select_session_policy(session_data.session_type, session_policy)
+    validations = tuple(_validation(lap, active_policy.decide_history(lap)) for lap in player_history.laps)
     samples_by_lap: dict[int, list[NormalizedSample]] = defaultdict(list)
     for sample in normalized.samples:
         if sample.session_uid == session_uid:
@@ -434,6 +440,7 @@ def prepare_session(
                 samples_by_lap[validation.lap_number],
                 validation,
                 session_data.track_length,
+                driver_statuses=active_policy.driver_statuses,
             )
         )
 
@@ -447,6 +454,9 @@ def prepare_session(
         laps=tuple(traces),
         normalization=_normalization_summary(normalized),
         context=context.finish(traces),
+        policy=PolicySelection(
+            active_policy.name, active_policy.status, active_policy.method_version, session_data.session_type,
+        ),
     )
 
 
@@ -775,14 +785,15 @@ def analyze_capture(
     comparison_laps: Sequence[int] | None = None,
     corner_catalog: CornerCatalog | None = DEFAULT_CORNER_CATALOG,
     motion: MotionMode = "off",
+    session_policy: PolicyMode = "auto",
 ) -> AnalysisResult:
     """Return the complete deterministic analysis for one capture."""
     capture_path = Path(path)
     if motion not in ("auto", "required", "off"):
         raise ValueError("motion must be auto, required, or off")
     composite = normalize_composite_capture(capture_path) if motion != "off" else None
-    session = (
-        prepare_session(capture_path, normalized=composite.core) if composite is not None else prepare_session(capture_path)
+    session = prepare_session(
+        capture_path, normalized=composite.core if composite is not None else None, session_policy=session_policy,
     )
     if not session.laps:
         raise ValueError("capture has no eligible laps")
@@ -904,8 +915,11 @@ def print_analysis(result: AnalysisResult) -> None:
         f"Session {session.session_uid} | track_id={session.track_id} | "
         f"length={session.track_length} m"
     )
-    if result.session_context is not None:
-        context = result.session_context
+    policy = result.session.policy
+    if policy is not None:
+        print(f"Session policy: {policy.name} ({policy.status}, method {policy.method_version})")
+    context = result.session_context
+    if context is not None:
         settings = context.settings
         if settings is None:
             print("Session context: unavailable")
@@ -1003,6 +1017,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--motion", choices=("auto", "required", "off"), default="auto",
         help="attach available motion (default), require both streams, or skip motion",
     )
+    parser.add_argument(
+        "--session-policy", choices=POLICY_CHOICES, default="auto",
+        help="select the recorded session mode (default), or require the stated mode",
+    )
     catalog_group = parser.add_mutually_exclusive_group()
     catalog_group.add_argument(
         "--corner-catalog",
@@ -1034,6 +1052,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             comparison_laps=args.comparison_laps,
             corner_catalog=corner_catalog,
             motion=args.motion,
+            session_policy=args.session_policy,
         )
         print_analysis(result)
         if args.output_dir is not None:

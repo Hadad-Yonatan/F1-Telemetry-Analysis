@@ -10,6 +10,7 @@ from f1_telemetry.analysis_output import write_analysis_bundle
 from f1_telemetry.capture_format import CaptureWriter
 from f1_telemetry.lap_analysis import AnalysisConfig, PreparedSession, analyze_capture
 from f1_telemetry.session_context import ContextCollector
+from f1_telemetry.session_policy import PolicySelection
 from tests.test_analysis_output import prepared_session
 from tests.test_motion_analysis import fixture_motion
 from tests.test_session_context import add, session_packet
@@ -36,6 +37,7 @@ def browser_result(capture: Path, *, step: float = 1.0):
             for lap in original.laps
         ),
         normalization=original.normalization,
+        policy=PolicySelection("time-trial", "validated", "1.0.0", 18),
     )
     collector = ContextCollector(extended.session_uid, 0)
     add(collector, session_packet(1, uid=extended.session_uid))
@@ -118,6 +120,7 @@ class HtmlReportBrowserTests(unittest.TestCase):
         self.assertTrue(page.get_by_text("Track temperature", exact=True).is_visible())
         self.assertTrue(page.get_by_text("33 °C", exact=True).is_visible())
         self.assertTrue(page.get_by_text("24 °C", exact=True).is_visible())
+        self.assertTrue(page.get_by_text("time-trial (validated, method 1.0.0)", exact=True).is_visible())
         self.assertEqual(page.locator(".telemetry-chart").count(), 6)
         self.assertEqual(page.get_by_role("checkbox", name="Brake").count(), 1)
 

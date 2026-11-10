@@ -13,19 +13,12 @@ from f1_telemetry.bundle import Artifact, digest_value, integer_value
 from f1_telemetry.library import DEFAULT_DATABASE, open_database
 from f1_telemetry.library_consistency import read_consistency
 from f1_telemetry.library_motion import read_motion
+from f1_telemetry.session_policy import SESSION_TYPES, session_mode
 
 
 _MAX_SQLITE_INTEGER = (1 << 63) - 1
 _UNIX_EPOCH = date(1970, 1, 1)
 _DAY_NS = 86_400_000_000_000
-# EA F1 25 v3 Session Types appendix, not a claim about policy support.
-_SESSION_TYPES = {
-    "practice": tuple(range(1, 5)),
-    "qualifying": tuple(range(5, 15)),
-    "race": (15, 16, 17),
-    "time-trial": (18,),
-}
-_MODE_BY_TYPE = {code: mode for mode, codes in _SESSION_TYPES.items() for code in codes}
 _T = TypeVar("_T")
 
 
@@ -51,7 +44,7 @@ class SessionFilters:
                 raise ValueError(f"{label} must be a calendar date")
         if self.created_from is not None and self.created_through is not None and self.created_from > self.created_through:
             raise ValueError("created_from cannot be later than created_through")
-        if self.mode is not None and (not isinstance(self.mode, str) or self.mode not in _SESSION_TYPES):
+        if self.mode is not None and (not isinstance(self.mode, str) or self.mode not in SESSION_TYPES):
             raise ValueError("mode must be practice, qualifying, race, or time-trial")
         if self.setup_fingerprint is not None:
             digest_value(self.setup_fingerprint, "setup fingerprint")
@@ -102,7 +95,7 @@ class SessionSummary:
 
     @property
     def mode(self) -> str | None:
-        return _MODE_BY_TYPE.get(self.session_type)
+        return session_mode(self.session_type)
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,7 +149,7 @@ def _where(filters: SessionFilters) -> tuple[str, tuple]:
             terms.append(f"{column} = ?")
             values.append(value)
     if filters.mode is not None:
-        codes = _SESSION_TYPES[filters.mode]
+        codes = SESSION_TYPES[filters.mode]
         terms.append("s.session_type IN (" + ",".join("?" for _ in codes) + ")")
         values.extend(codes)
     if filters.setup_fingerprint is not None:

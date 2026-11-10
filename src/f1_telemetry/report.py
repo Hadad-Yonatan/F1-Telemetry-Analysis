@@ -201,12 +201,17 @@ def render_markdown_report(result: AnalysisResult) -> str:
         f"- Track ID: {session.track_id}",
         f"- Track length: {session.track_length} m",
         f"- Algorithm version: {result.config.algorithm_version}",
+    ]
+    if session.policy is not None:
+        policy = session.policy
+        lines.append(f"- Session policy: {policy.name} ({policy.status}, method {policy.method_version})")
+    lines.extend((
         "",
         "## Lap eligibility",
         "",
         "| Lap | Official time | Sector 1 | Sector 2 | Sector 3 | Status |",
         "| ---: | :--- | :--- | :--- | :--- | :--- |",
-    ]
+    ))
     for lap in session.validations:
         time = _lap_time(lap.official_lap_time_ms) if lap.official_lap_time_ms else "--"
         sectors = [
