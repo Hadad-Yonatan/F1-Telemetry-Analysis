@@ -45,6 +45,11 @@ class LibraryWebTests(unittest.TestCase):
         self.assertTrue(self.client.get(self.api + "/comparisons/1/regions").json["data"])
         self.assertEqual(self.client.get(self.api + "/comparisons/1/regions/0").status_code, 200)
         self.assertEqual(self.client.get(self.api + "/corners/test-t01").json["data"]["number"], 1)
+        response = self.client.get(self.api + "/consistency")
+        self.assertEqual(response.json["data"], verify_bundle(self.bundle).consistency)
+        for status, total in (("available", 1), ("unavailable", 0), ("not-indexed", 0)):
+            response = self.client.get(f"/api/v1/sessions?consistency={status}&corner_consistency=available")
+            self.assertEqual(response.json["pagination"]["total"], total)
         self.assertEqual(self.client.get("/api/v1/setups/" + lap["setup_fingerprint"]).json["data"]["values"]["front_wing"], 25)
         self.assertEqual(self.client.get(f"/sessions/{self.bundle_id}/laps/1").content_type, "text/html; charset=utf-8")
         artifact_info = self.client.get(self.api + "/artifacts").json["data"]
@@ -58,7 +63,7 @@ class LibraryWebTests(unittest.TestCase):
     def test_bad_filters_missing_objects_and_untrusted_hosts(self):
         for query in (
             "page=0", "page_size=101", "track_id=text", "mode=other",
-            "team_id=3&team_id=4", "algorithm=1", "created_from=19700101",
+            "team_id=3&team_id=4", "algorithm=1", "created_from=19700101", "consistency=unknown",
             "created_from=1970-01-02&created_through=1970-01-01",
         ):
             with self.subTest(query=query):

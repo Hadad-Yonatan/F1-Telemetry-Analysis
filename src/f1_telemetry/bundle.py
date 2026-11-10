@@ -43,6 +43,7 @@ class VerifiedBundle:
     document: dict[str, object]
     artifacts: tuple[Artifact, ...]
     manifested: bool
+    consistency: dict | None = None
 
 
 def _unique_object(items: list[tuple[str, object]]) -> dict[str, object]:
@@ -289,6 +290,7 @@ def verify_bundle(path: str | Path) -> VerifiedBundle:
         raise BundleError("analysis.json changed during verification")
     if manifest is not None and artifacts != declared:
         raise BundleError("bundle artifact size or SHA-256 does not match the manifest")
+    consistency = None
     if CONSISTENCY_FILENAME in required:
         descriptor = required[CONSISTENCY_FILENAME]
         expected = digest_value(descriptor.get("sha256"), "consistency SHA-256")
@@ -307,4 +309,4 @@ def verify_bundle(path: str | Path) -> VerifiedBundle:
         status = consistency.get("status")
         if status not in ("available", "unavailable") or descriptor.get("status") != status:
             raise BundleError("inconsistent consistency availability")
-    return VerifiedBundle(root, bundle_id, document, artifacts, manifest is not None)
+    return VerifiedBundle(root, bundle_id, document, artifacts, manifest is not None, consistency)

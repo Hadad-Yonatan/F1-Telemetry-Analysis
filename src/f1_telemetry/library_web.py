@@ -25,7 +25,7 @@ _DIGEST = re.compile(r"[0-9a-f]{64}")
 _BASENAME = re.compile(r"[a-z0-9][a-z0-9_.-]*")
 _QUERY_KEYS = {
     "track_id", "created_from", "created_through", "mode", "team_id",
-    "setup_fingerprint", "algorithm_version", "page", "page_size",
+    "setup_fingerprint", "algorithm_version", "consistency", "corner_consistency", "page", "page_size",
 }
 _MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -75,6 +75,8 @@ def _filters() -> tuple[SessionFilters, PageRequest, dict[str, str]]:
                 team_id=_int(values.get("team_id"), "team_id"),
                 setup_fingerprint=values.get("setup_fingerprint"),
                 algorithm_version=values.get("algorithm_version"),
+                consistency=values.get("consistency"),
+                corner_consistency=values.get("corner_consistency"),
             ),
             PageRequest(page if page is not None else 1, page_size if page_size is not None else 25),
             values,
@@ -190,7 +192,7 @@ def create_app(database: str | Path) -> Flask:
         return render_template(
             "session.html", session=session, laps=service.list_laps(bundle_id),
             comparisons=service.list_comparisons(bundle_id), corners=service.list_corners(bundle_id),
-            artifacts=service.list_artifacts(bundle_id),
+            artifacts=service.list_artifacts(bundle_id), consistency=service.get_consistency(bundle_id),
         )
 
     @app.get("/api/v1/sessions/<bundle_id>/laps/<int:number>")
@@ -271,6 +273,14 @@ def create_app(database: str | Path) -> Flask:
             **_summary(session.summary), "capture_sha256": session.capture_sha256,
             "capture_size_bytes": session.capture_size_bytes, "context": session.context,
         })
+
+    @app.get("/api/v1/sessions/<bundle_id>/consistency")
+    def api_consistency(bundle_id):
+        session_or_404(bundle_id)
+        consistency = service.get_consistency(bundle_id)
+        if consistency is None:
+            abort(404, description="No indexed consistency result for this bundle.")
+        return api(consistency)
 
     @app.get("/api/v1/sessions/<bundle_id>/<collection>")
     def api_collection(bundle_id, collection):
