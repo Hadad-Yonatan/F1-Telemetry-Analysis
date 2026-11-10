@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Lap comparison · Telemetry history{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('session_page', bundle_id=session.bundle_id) }}">Back to session</a></p>
+<h1>Lap {{ comparison.comparison_lap }} vs {{ comparison.reference_lap }}</h1>
+<p>Official delta: {{ '%+.3f'|format(comparison.official_delta_s) }} s.</p>
+<h2>Loss regions</h2>
+{% if comparison.loss_regions %}<ul>{% for region in comparison.loss_regions %}
+  <li><a href="{{ url_for('region_detail', bundle_id=session.bundle_id, number=comparison.comparison_lap, index=loop.index0) }}">{{ region.start_distance_m }}–{{ region.end_distance_m }} m</a> · {{ '%+.3f'|format(region.time_loss_s) }} s</li>
+{% endfor %}</ul>{% else %}<p>No loss regions in this comparison.</p>{% endif %}
+{% endblock %}

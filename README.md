@@ -146,6 +146,16 @@ and never copies the capture or artifacts. See the
 [library and bundle contract](docs/session-library-v1.md) for legacy bundles,
 verification, and recovery.
 
+Install the optional interface to browse that index:
+
+```bash
+python -m pip install '.[library]'
+f1-telemetry-library serve
+```
+
+Open [http://127.0.0.1:8765](http://127.0.0.1:8765). The service is read-only
+and only binds to loopback addresses.
+
 ## Validate across circuits
 
 The tracked cross-circuit manifest locks capture identity, session invariants,

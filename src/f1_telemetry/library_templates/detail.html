@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Telemetry history{% endblock %}
+{% block content %}
+{% if session %}<p><a href="{{ url_for('session_page', bundle_id=session.bundle_id) }}">Back to session</a></p>{% endif %}
+<h1>{{ title }}</h1>
+{% if fingerprint %}<p><code>{{ fingerprint }}</code></p>{% endif %}
+<div class="scroll"><dl class="facts">
+{% for key, value in data.items() %}
+  <div><dt>{{ key|replace('_', ' ')|capitalize }}</dt><dd>{% if value is mapping or (value is iterable and value is not string) %}<pre>{{ value|tojson(indent=2) }}</pre>{% elif value is none %}Unavailable{% else %}{{ value }}{% endif %}</dd></div>
+{% endfor %}
+</dl></div>
+{% endblock %}

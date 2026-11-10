@@ -407,13 +407,16 @@ def verify_library(path: str | Path = DEFAULT_DATABASE) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("init", "import", "rebuild", "verify"):
+    for name in ("init", "import", "rebuild", "verify", "serve"):
         command = commands.add_parser(name)
         command.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
         if name == "import":
             command.add_argument("bundles", metavar="BUNDLE", nargs="+", type=Path)
         elif name == "rebuild":
             command.add_argument("bundle_root", metavar="BUNDLE_ROOT", nargs="?", type=Path, default=DEFAULT_BUNDLE_ROOT)
+        elif name == "serve":
+            command.add_argument("--host", default="127.0.0.1")
+            command.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
@@ -421,6 +424,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Library initialized: {args.database}")
         elif args.command == "verify":
             print(f"Verified {verify_library(args.database)} indexed bundles")
+        elif args.command == "serve":
+            try:
+                from f1_telemetry.library_web import serve
+            except ModuleNotFoundError as error:
+                if error.name != "flask":
+                    raise
+                raise LibraryError("Install the optional library extra to use serve.") from error
+            serve(args.database, args.host, args.port)
         else:
             imported, skipped = (
                 import_bundles(args.database, args.bundles)

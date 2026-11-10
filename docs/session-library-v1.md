@@ -53,3 +53,28 @@ Sessions are sorted by capture timestamp descending, then bundle ID
 ascending. The service exposes session, lap, setup, corner, comparison,
 region, and artifact records; it neither changes the database nor reads
 or serves artifact contents.
+
+## Local interface
+
+Install the optional `library` extra and run `f1-telemetry-library serve`.
+It defaults to `127.0.0.1:8765`; `--host` accepts only `localhost`,
+`127.0.0.1`, or `::1`. The chosen database path appears on the page.
+The service never opens SQLite for writing and has no write or upload routes.
+
+The list at `/` and `GET /api/v1/sessions` (also `/api/v1/bundles`) accept
+`track_id`, `created_from`, `created_through`, `mode`, `team_id`,
+`setup_fingerprint`, `algorithm_version`, `page`, and `page_size`. Dates
+use `YYYY-MM-DD`; repeated or unknown filter parameters are errors.
+Detail paths use `/api/v1/sessions/<bundle-id>` and the `laps`,
+`comparisons`, `corners`, and `artifacts` collections.
+Comparison regions are under `comparisons/<lap-number>/regions`; setup
+details are at `/api/v1/setups/<fingerprint>`. JSON responses include
+`schema_version: 1`; UID and capture nanoseconds remain decimal strings.
+
+Files at `/artifacts/<bundle-id>/<name>` must match the indexed path, size,
+and hash from a verified manifest. Legacy bundle metadata remains available
+without HTTP file links. Symlinks are refused and a file that changed after import is
+unavailable until the source is restored or the library rebuilt. Standalone
+HTML reports open in a sandboxed frame without same-origin access. The history
+page restricts report frame navigation to the local origin. Direct HTML and
+SVG artifact requests download the files.

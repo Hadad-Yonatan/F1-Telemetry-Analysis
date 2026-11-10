@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Standalone report · Telemetry history{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('session_page', bundle_id=bundle_id) }}">Back to session</a></p>
+<h1>Standalone report</h1>
+<iframe class="report-frame" title="Driver analysis report" sandbox="allow-scripts allow-downloads"
+        src="{{ url_for('artifact', bundle_id=bundle_id, name='report.html', embed=1) }}"></iframe>
+{% endblock %}
