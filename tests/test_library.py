@@ -73,6 +73,14 @@ class BundleLibraryTests(unittest.TestCase):
         with contextlib.closing(open_database(self.db)) as connection:
             return connection.execute(sql).fetchall()
 
+    def test_consistency_descriptor_cannot_be_bypassed_by_a_regenerated_manifest(self):
+        artifact = self.bundle / "consistency.json"
+        artifact.write_bytes(artifact.read_bytes() + b" ")
+        (self.bundle / "bundle.json").unlink()
+        write_bundle_manifest(self.bundle)
+        with self.assertRaisesRegex(BundleError, "does not match analysis.json"):
+            verify_bundle(self.bundle)
+
     def test_manifest_hashes_exact_files_and_does_not_change_analysis_identity(self):
         bundle = verify_bundle(self.bundle)
         manifest = json.loads((self.bundle / "bundle.json").read_bytes())

@@ -8,6 +8,7 @@ import json
 from importlib import resources
 from pathlib import Path
 
+from f1_telemetry.consistency import ConsistencyResult, Distribution
 from f1_telemetry.corner_catalog import format_corner_label
 from f1_telemetry.lap_analysis import AnalysisResult, LapComparison, ResampledLap
 from f1_telemetry.report import comparison_stem
@@ -130,6 +131,63 @@ def _safe_json(document: dict[str, object]) -> str:
     )
 
 
+def _distribution_row(label: str, summary: Distribution) -> str:
+    values = "".join(
+        f"<td>{value:.3f}</td>"
+        for value in (summary.minimum, summary.maximum, summary.median, summary.mad)
+    )
+    return f'<tr><th scope="row">{html.escape(label)}</th>{values}</tr>'
+
+
+def _distribution_table(caption: str, rows: str) -> str:
+    return (
+        '<div class="table-scroll"><table>'
+        f"<caption>{html.escape(caption)}</caption>"
+        '<thead><tr><th scope="col">Metric</th><th scope="col">Minimum</th>'
+        '<th scope="col">Maximum</th><th scope="col">Median</th>'
+        f'<th scope="col">MAD</th></tr></thead><tbody>{rows}</tbody></table></div>'
+    )
+
+
+def _consistency_section(result: ConsistencyResult | None) -> str:
+    if result is None:
+        return ""
+    if result.lap_time_s is None or result.trend is None:
+        content = "<p>Unavailable: at least three eligible laps are required.</p>"
+    else:
+        rows = _distribution_row("Lap", result.lap_time_s)
+        rows += "".join(
+            _distribution_row(f"Sector {index}", summary)
+            for index, summary in enumerate(result.sector_times_s, 1)
+        )
+        content = _distribution_table("Official times (seconds)", rows)
+        content += (
+            f"<p>Trend: {result.trend.slope_s_per_attempt:+.3f} s per eligible attempt; "
+            f"intercept {result.trend.intercept_s:.3f} s.</p>"
+        )
+        if result.corner_status == "unavailable":
+            content += "<p>Corner consistency is unavailable without a matching corner catalog.</p>"
+        else:
+            for corner in result.corners:
+                label = f"T{corner.turn_number} · {corner.display_name}"
+                rows = _distribution_row("Duration (s)", corner.duration_s)
+                rows += "".join(
+                    _distribution_row(item.metric.replace("_", " "), item.distribution)
+                    for item in corner.event_summaries
+                )
+                content += f"<details><summary>{html.escape(label)}</summary>"
+                content += _distribution_table(label, rows)
+                if corner.event_status == "unavailable":
+                    content += "<p>Event summary requires one complete event on every eligible lap.</p>"
+                content += "</details>"
+    return (
+        '<section class="summary-card" aria-labelledby="consistency-heading">'
+        '<h2 id="consistency-heading">Lap consistency</h2>'
+        f'<p>{len(result.laps)} eligible laps · method {html.escape(result.method_version)}.</p>'
+        f"{content}</section>"
+    )
+
+
 def render_html_report(
     result: AnalysisResult,
     document: dict[str, object],
@@ -211,6 +269,8 @@ def render_html_report(
         </table>
       </div>
     </section>
+
+    {_consistency_section(result.consistency)}
 
     <section class="comparison-summary" aria-labelledby="comparison-heading">
       <div>

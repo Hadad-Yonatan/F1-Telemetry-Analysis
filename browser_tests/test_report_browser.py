@@ -82,6 +82,13 @@ class HtmlReportBrowserTests(unittest.TestCase):
         cls.playwright.stop()
         cls.temporary.cleanup()
 
+    def test_consistency_is_visible_without_selecting_a_comparison(self):
+        page = self.open_report()
+        section = page.get_by_role("region", name="Lap consistency")
+        self.assertTrue(section.get_by_text("3 eligible laps", exact=False).is_visible())
+        self.assertTrue(section.get_by_role("table", name="Official times (seconds)").is_visible())
+        self.assertTrue(section.get_by_text("without a matching corner catalog", exact=False).is_visible())
+
     def open_report(self, viewport: dict[str, int] | None = None):
         page = self.browser.new_page(viewport=viewport or {"width": 1440, "height": 900})
         requests: list[str] = []

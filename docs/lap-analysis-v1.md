@@ -146,7 +146,9 @@ With `--output-dir`, the analyzer creates a new directory containing:
 - `analysis.json`, with capture identity, algorithm parameters, session and
   eligibility metadata, selected laps, sector deltas, finish verification,
   loss regions, driving events, matching state, numeric evidence, catalog
-  identity, the selected track definition, and per-region corner IDs;
+  identity, the selected track definition, per-region corner IDs, and the
+  consistency artifact's path, versions, availability, and SHA-256;
+- `consistency.json`, with the result for every eligible lap (see below);
 - `report.md`, with lap eligibility, every ranked loss region, sector and
   distance and corner context, factual event observations, and relative links
   to traces and plots;
@@ -154,8 +156,9 @@ With `--output-dir`, the analyzer creates a new directory containing:
   result with comparison selection, synchronized speed/delta/input/gear
   panels, cursor values, channel controls, and region-based zoom;
 - one `lap-XX-vs-YY.csv` per comparison, containing the complete aligned time,
-  delta, speed, throttle, brake, steering, and gear traces; and
-- one matching `lap-XX-vs-YY.svg` six-panel plot per comparison.
+  delta, speed, throttle, brake, steering, and gear traces;
+- one matching `lap-XX-vs-YY.svg` six-panel plot per comparison; and
+- `bundle.json`, which records the exact SHA-256 and size of each artifact.
 
 The complete bundle is written to a temporary sibling directory and renamed
 into place only after every file succeeds. Existing destinations are rejected.
@@ -174,6 +177,30 @@ resources, so the report opens directly with a local-file URL. The bundled
 font files are redistributed under the SIL Open Font License 1.1, included
 with the package as `AtkinsonHyperlegible-OFL.txt`. The typeface is published
 by the [Braille Institute](https://www.brailleinstitute.org/freefont/).
+
+## Lap consistency
+
+Consistency schema 1, method `1.0.0`, includes every eligible lap in lap-number
+order. The reference and comparison selections do not affect it. Fewer than
+three eligible laps produces an unavailable result with the raw official
+timings intact. Otherwise, lap, sector, and (when the catalog matches) turn
+durations include minimum, maximum, median, and unscaled median absolute
+deviation (MAD). Turn durations interpolate elapsed time at exact entry and
+exit distances from the retained lap samples and official finish time.
+
+A braking event belongs to the turn containing its minimum-speed distance
+inclusively. At a shared boundary, the nearest apex wins, then the lower turn
+number. Within a turn, the raw selection is the event nearest the apex, then
+the lower event index. The JSON retains every candidate. An event summary
+requires exactly one complete event (with detected throttle reapplication)
+per eligible lap. The summary uses that complete event even if the raw
+selection was closer to the apex; both indices are recorded. Otherwise the
+event summary is unavailable, but the duration summary is still present.
+With no matching catalog only the corner section is unavailable.
+
+The least-squares trend uses one-based eligible-attempt ordinal and official
+lap time in seconds. A negative slope means faster times over eligible
+attempts; it does not explain why.
 
 ## Cross-circuit validation
 
