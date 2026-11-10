@@ -37,3 +37,19 @@ from their new root. If the existing database is unreadable or belongs to a
 different application or schema, the CLI refuses to overwrite it. Keep a
 copy if needed, then rebuild to a fresh path. Raw captures and generated
 reports remain separate from the disposable library index.
+
+## Read-only queries
+
+`f1_telemetry.library_service.LibraryService` queries the index without
+opening it for writing. `SessionFilters` combines every supplied filter
+with AND. Date bounds are inclusive UTC capture dates. The team filter
+uses the recorded team ID as the car identifier. Mode groups come from
+the recorded F1 25 session type; unknown modes remain unavailable. A
+setup filter matches if any eligible lap has that setup fingerprint.
+Algorithm versions match exactly.
+
+`PageRequest` is 1-based, with 25 rows by default and at most 100.
+Sessions are sorted by capture timestamp descending, then bundle ID
+ascending. The service exposes session, lap, setup, corner, comparison,
+region, and artifact records; it neither changes the database nor reads
+or serves artifact contents.
