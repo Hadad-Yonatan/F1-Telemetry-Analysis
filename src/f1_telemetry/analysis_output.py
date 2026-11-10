@@ -410,6 +410,8 @@ def _analysis_document(
     }
     if consistency is not None and result.consistency is not None:
         document["consistency"] = result.consistency.descriptor(consistency)
+    if result.session.policy is not None:
+        document["session_policy"] = asdict(result.session.policy)
     if motion is not None and result.motion is not None:
         document["motion"] = result.motion.descriptor(*motion)
     return document

@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from f1_telemetry.session_policy import PolicySelection
 from f1_telemetry.validation import (
     QualityGates,
     SuiteValidationResult,
@@ -106,6 +107,7 @@ def analysis_result(
             track_length=100,
             normalization=normalization,
             validations=validations,
+            policy=PolicySelection("time-trial", "validated", "1.0.0", 18),
         ),
         reference_lap=1,
         comparisons=(comparison,),
@@ -262,6 +264,7 @@ class ValidationRunTests(unittest.TestCase):
         document = json.loads((first / "validation.json").read_text(encoding="utf-8"))
         self.assertTrue(document["passed"])
         self.assertEqual(document["cases"][0]["metrics"]["loss_region_count"], 3)
+        self.assertEqual(document["cases"][0]["actual"]["session_policy"]["status"], "validated")
         self.assertNotIn("timestamp", (first / "validation.json").read_text(encoding="utf-8"))
 
     def test_output_failure_removes_temporary_and_final_directories(self) -> None:

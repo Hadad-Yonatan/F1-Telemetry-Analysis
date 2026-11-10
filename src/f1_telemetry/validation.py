@@ -10,12 +10,13 @@ import re
 import shutil
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 from f1_telemetry.lap_analysis import AnalysisResult, analyze_capture
 from f1_telemetry.session_context import ContextDiagnostics
+from f1_telemetry.session_policy import PolicySelection
 
 
 SCHEMA_VERSION = 1
@@ -96,6 +97,7 @@ class CaseObservations:
     unmatched_telemetry_packets: int
     finish_delta_errors_s: tuple[float, ...]
     context_diagnostics: tuple[ContextDiagnostics, ...] = ()
+    session_policy: PolicySelection | None = None
 
 
 @dataclass(frozen=True)
@@ -407,6 +409,7 @@ def _observations(result: AnalysisResult) -> CaseObservations:
         context_diagnostics=(
             result.session_context.diagnostics if result.session_context is not None else ()
         ),
+        session_policy=result.session.policy,
     )
 
 
@@ -611,6 +614,8 @@ def validation_document(result: SuiteValidationResult) -> dict[str, object]:
                 "algorithm_version": case_result.algorithm_version,
                 "expected": _case_document(case_result.case),
                 "actual": {
+                    **({"session_policy": asdict(case_result.observations.session_policy)}
+                       if case_result.observations.session_policy is not None else {}),
                     "capture_sha256": case_result.observations.capture_sha256,
                     "capture_size_bytes": case_result.observations.capture_size_bytes,
                     "track_id": case_result.observations.track_id,
@@ -729,6 +734,9 @@ def render_validation_markdown(result: SuiteValidationResult) -> str:
                 f"- Algorithm version: `{case_result.algorithm_version}`",
             ]
         )
+        if observed.session_policy is not None:
+            policy = observed.session_policy
+            lines.append(f"- Session policy: {policy.name} ({policy.status}, method {policy.method_version})")
         if case_result.failures:
             lines.extend(["", "Failures:", ""])
             lines.extend(

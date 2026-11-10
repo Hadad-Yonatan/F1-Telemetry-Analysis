@@ -180,6 +180,19 @@ font files are redistributed under the SIL Open Font License 1.1, included
 with the package as `AtkinsonHyperlegible-OFL.txt`. The typeface is published
 by the [Braille Institute](https://www.brailleinstitute.org/freefont/).
 
+## Session policy
+
+`--session-policy auto` uses the mode reported by F1 25's Session packet.
+An explicit `--session-policy time-trial` requires Time Trial rather than
+forcing those rules onto a different mode. Unknown modes and recognized
+modes without an implemented policy fail with an explanation.
+
+Time Trial remains the validated policy. Policy schema 1 and method
+`1.0.0` are recorded separately from comparison algorithm `1.1.0`.
+The refactor preserves official history eligibility, retained flying-lap
+samples, fastest-eligible reference selection, and the existing numeric
+comparison and validation gates.
+
 ## Lap consistency
 
 Consistency schema 1, method `1.0.0`, includes every eligible lap in lap-number
