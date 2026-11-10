@@ -211,6 +211,23 @@ conditions or missing evidence, select both `--reference-lap` and
 the override, field-level differences, and any missing cohort fields.
 Consistency remains a descriptive summary of all eligible laps.
 
+Race uses the same experimental opt-in and comparison override. It also
+requires matching Event, Car Damage, and pit evidence. Its policy excludes
+laps with safety car, virtual safety car, formation, red flag, pit, tyre
+transition, or observed damage change. Routine tyre and power-unit wear
+are not changes to the damage state. Missing required race evidence is
+not treated as a clean lap. Red-flag events and red-period counter
+increases remain active until observed race resumption.
+The exclusion window includes unpaired raw Lap Data at the lap boundaries,
+and recorded safety-car counter increases count even if the Event was missed.
+
+A recorded pit stop or tyre change starts a new stint on the next
+non-transition lap. Default comparisons stay within both the same stint
+and the same condition cohort. The report's `race_evidence` records the
+observed stints, lap-start damage, pit counters, and race-specific
+exclusion reasons. These rules are synthetic-tested and experimental,
+not validated on a live Race capture.
+
 ## Lap consistency
 
 Consistency schema 1, method `1.0.0`, includes every eligible lap in lap-number

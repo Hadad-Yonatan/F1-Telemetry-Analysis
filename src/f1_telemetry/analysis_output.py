@@ -418,6 +418,24 @@ def _analysis_document(
         document["session_policy"] = asdict(result.session.policy)
     if result.session.lap_policy_context:
         document["lap_policy_context"] = [lap_policy_context_document(row) for row in result.session.lap_policy_context]
+    if result.session.race_evidence is not None:
+        race = result.session.race_evidence
+        document["race_evidence"] = {
+            "schema_version": race.schema_version,
+            "event_packets": race.event_packets,
+            "damage_packets": race.damage_packets,
+            "pit_packets": race.pit_packets,
+            "decode_errors": {str(packet_id): count for packet_id, count in race.decode_errors},
+            "laps": [
+                {
+                    "lap_number": lap.lap_number, "stint_id": lap.stint_id,
+                    "pit_stops_at_start": lap.pit_stops_at_start,
+                    "damage_at_start": dict(lap.damage_at_start.fields) if lap.damage_at_start is not None else None,
+                    "exclusion_reasons": list(lap.exclusion_reasons),
+                }
+                for lap in race.laps
+            ],
+        }
     if motion is not None and result.motion is not None:
         document["motion"] = result.motion.descriptor(*motion)
     return document

@@ -113,10 +113,14 @@ def select_session_policy(
         raise ValueError(f"session type {session_type} is {mode}, not requested {requested}")
     if mode == "time-trial":
         return TimeTrialPolicy()
-    if mode in ("practice", "qualifying"):
+    if mode in ("practice", "qualifying", "race"):
         if not allow_experimental:
             raise ValueError(f"{mode} policy is experimental; pass --allow-experimental-session-mode")
+        if mode == "race":
+            from f1_telemetry.race_policy import RacePolicy
+
+            return RacePolicy()
         from f1_telemetry.experimental_policy import PracticePolicy, QualifyingPolicy
 
         return PracticePolicy() if mode == "practice" else QualifyingPolicy()
-    raise ValueError(f"session policy {mode} is not yet available")
+    raise ValueError(f"session policy {mode} is not available")
