@@ -193,6 +193,8 @@ class MotionBundleTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as connection, connection:
             connection.execute("DROP TABLE motion_metrics")
             connection.execute("DROP TABLE motion_runs")
+            connection.execute("DROP TABLE experiment_metrics")
+            connection.execute("DROP TABLE experiments")
             connection.execute("PRAGMA user_version=2")
         init_library(self.db)
         self.assertEqual(service.get_motion(self.verified.bundle_id), expected)

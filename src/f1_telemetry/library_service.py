@@ -12,6 +12,7 @@ from typing import Generic, TypeVar
 from f1_telemetry.bundle import Artifact, digest_value, integer_value
 from f1_telemetry.library import DEFAULT_DATABASE, open_database
 from f1_telemetry.library_consistency import read_consistency
+from f1_telemetry.library_experiments import experiment_index_summary
 from f1_telemetry.library_motion import read_motion
 from f1_telemetry.session_policy import SESSION_TYPES, session_mode
 
@@ -230,6 +231,18 @@ class LibraryService:
         with closing(open_database(self.database)) as connection:
             connection.execute("BEGIN")
             return read_motion(connection, bundle_id)
+
+    def list_experiments(self) -> tuple[dict, ...]:
+        fields = ("experiment_id", "track_id", "control_label", "candidate_label", "method_version")
+        return tuple(dict(zip(fields, row)) for row in self._rows(
+            "SELECT experiment_id, track_id, control_label, candidate_label, method_version "
+            "FROM experiments ORDER BY experiment_id", (),
+        ))
+
+    def get_experiment(self, experiment_id: str) -> dict | None:
+        with closing(open_database(self.database)) as connection:
+            connection.execute("BEGIN")
+            return experiment_index_summary(connection, experiment_id)
 
     def list_laps(self, bundle_id: str) -> tuple[LapEntry, ...]:
         rows = self._rows(

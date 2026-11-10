@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Setup experiment · Telemetry history{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('experiments') }}">Back to setup experiments</a></p>
+<h1>{{ experiment.manifest.control.label }} vs {{ experiment.manifest.candidate.label }}</h1>
+<p>Track {{ experiment.track.track_id }} · {{ experiment.track.track_length_m }} m · Method {{ experiment.method_version }}</p>
+<p>Numeric associations only. These comparisons do not prescribe setup changes.</p>
+<ul>{% for role in ('control', 'candidate') %}
+  <li>{{ role|capitalize }}: <a href="{{ url_for('session_page', bundle_id=experiment.manifest[role].bundle_id) }}">{{ experiment.manifest[role].label }}</a>
+    · Laps {{ experiment.manifest[role].laps|join(', ') }}</li>
+{% endfor %}</ul>
+<h2>Declared setup differences</h2>
+<ul>{% for change in experiment.setup_changes %}<li>{{ change.field }}: {{ change.control }} → {{ change.candidate }}</li>{% endfor %}</ul>
+<h2>Observed measurements</h2>
+<div class="scroll"><table>
+  <caption>Candidate minus control median (at least three observed laps per group)</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">Control count</th><th scope="col">Control median</th>
+  <th scope="col">Control MAD</th><th scope="col">Candidate count</th><th scope="col">Candidate median</th>
+  <th scope="col">Candidate MAD</th><th scope="col">Difference</th></tr></thead>
+  <tbody>{% for metric in experiment.metrics %}
+    <tr><th scope="row">{{ metric.metric }} ({{ metric.unit }})</th>
+    {% for role in ('control', 'candidate') %}
+      <td>{{ metric[role].count }}</td>
+      {% for field in ('median', 'mad') %}<td>{{ '%.6f'|format(metric[role][field]) if metric[role][field] is not none else '—' }}</td>{% endfor %}
+    {% endfor %}
+    <td>{{ '%.6f'|format(metric.candidate_minus_control) if metric.candidate_minus_control is not none else '—' }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}
