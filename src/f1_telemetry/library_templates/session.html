@@ -19,6 +19,38 @@
       <td>{% if lap.setup_fingerprint %}<a href="{{ url_for('setup_detail', fingerprint=lap.setup_fingerprint) }}">Setup {{ lap.setup_fingerprint[:12] }}</a>{% else %}Unavailable{% endif %}</td></tr>
   {% endfor %}</tbody>
 </table></div>
+<section aria-labelledby="consistency-heading">
+<h2 id="consistency-heading">Lap consistency</h2>
+{% if consistency is none %}
+<p>Not indexed for this bundle.</p>
+{% else %}
+<p>{{ consistency.laps|length }} eligible laps · method {{ consistency.method_version }}.
+  <a href="{{ url_for('api_consistency', bundle_id=item.bundle_id) }}">Consistency API data</a>
+</p>
+{% if consistency.status == 'available' %}
+<div class="scroll"><table>
+  <caption>Official times (seconds)</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">Minimum</th><th scope="col">Maximum</th><th scope="col">Median</th><th scope="col">MAD</th></tr></thead>
+  <tbody>{% for summary in [consistency.lap_time_s] + consistency.sector_times_s %}
+  <tr><th scope="row">{{ 'Lap' if loop.first else ('Sector ' ~ loop.index0) }}</th>
+    {% for field in ('minimum', 'maximum', 'median', 'mad') %}<td>{{ '%.3f'|format(summary[field]) }}</td>{% endfor %}</tr>
+  {% endfor %}</tbody>
+</table></div>
+<p>Trend: {{ '%+.3f'|format(consistency.trend.slope_s_per_attempt) }} s per eligible attempt.</p>
+{% if consistency.corner_status == 'available' %}
+<div class="scroll"><table>
+  <caption>Corner durations and event availability</caption>
+  <thead><tr><th scope="col">Turn</th><th scope="col">Median duration (s)</th><th scope="col">Duration MAD (s)</th><th scope="col">Events</th></tr></thead>
+  <tbody>{% for corner in consistency.corners %}
+  <tr><th scope="row">T{{ corner.turn_number }} · {{ corner.display_name }}</th>
+    <td>{{ '%.3f'|format(corner.duration_s.median) }}</td><td>{{ '%.3f'|format(corner.duration_s.mad) }}</td>
+    <td>{{ corner.event_status|capitalize }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p>Corner consistency is unavailable without a matching catalog.</p>{% endif %}
+{% else %}<p>Unavailable: at least three eligible laps are required.</p>{% endif %}
+{% endif %}
+</section>
 <h2>Comparisons</h2>
 <ul>{% for comparison in comparisons %}
   <li><a href="{{ url_for('comparison_detail', bundle_id=item.bundle_id, number=comparison.comparison_lap) }}">Lap {{ comparison.comparison_lap }} vs {{ comparison.reference_lap }}</a></li>

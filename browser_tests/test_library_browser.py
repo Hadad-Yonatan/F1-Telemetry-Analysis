@@ -110,3 +110,21 @@ class LibraryBrowserTests(unittest.TestCase):
         with page.expect_event("console", predicate=lambda message: "frame-src" in message.text):
             page.goto(self.base + "/reports/" + bundle_id)
         self.assertEqual(external, [])
+
+    def test_filter_and_read_indexed_consistency(self):
+        page = self.browser.new_page(viewport={"width": 390, "height": 844})
+        self.addCleanup(page.close)
+        page.goto(self.base)
+        page.get_by_label("Lap consistency").select_option("not-indexed")
+        page.get_by_role("button", name="Filter sessions").click()
+        self.assertTrue(page.get_by_text("No sessions match these filters.").is_visible())
+        page.get_by_label("Lap consistency").select_option("available")
+        page.get_by_label("Corner consistency").select_option("available")
+        page.get_by_role("button", name="Filter sessions").click()
+        page.get_by_role("link", name="Test Circuit").first.click()
+        section = page.get_by_role("region", name="Lap consistency")
+        self.assertTrue(section.get_by_role("table", name="Corner durations and event availability").is_visible())
+        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+        section.get_by_role("link", name="Consistency API data").click()
+        self.assertTrue(page.url.endswith("/consistency"))
+        self.assertIn("method_version", page.locator("body").inner_text())

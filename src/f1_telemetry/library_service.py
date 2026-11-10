@@ -11,6 +11,7 @@ from typing import Generic, TypeVar
 
 from f1_telemetry.bundle import Artifact, digest_value, integer_value
 from f1_telemetry.library import DEFAULT_DATABASE, open_database
+from f1_telemetry.library_consistency import read_consistency
 
 
 _MAX_SQLITE_INTEGER = (1 << 63) - 1
@@ -36,6 +37,8 @@ class SessionFilters:
     team_id: int | None = None
     setup_fingerprint: str | None = None
     algorithm_version: str | None = None
+    consistency: str | None = None
+    corner_consistency: str | None = None
 
     def __post_init__(self) -> None:
         if self.track_id is not None:
@@ -55,6 +58,9 @@ class SessionFilters:
             not isinstance(self.algorithm_version, str) or not self.algorithm_version.strip()
         ):
             raise ValueError("algorithm version must be nonempty")
+        for field, status in (("consistency", self.consistency), ("corner_consistency", self.corner_consistency)):
+            if status is not None and status not in ("available", "unavailable", "not-indexed"):
+                raise ValueError(f"{field} must be available, unavailable, or not-indexed")
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +163,12 @@ def _where(filters: SessionFilters) -> tuple[str, tuple]:
             "EXISTS (SELECT 1 FROM laps WHERE bundle_id=b.bundle_id AND eligible=1 AND setup_fingerprint=?)"
         )
         values.append(filters.setup_fingerprint)
+    for status, column in ((filters.consistency, "status"), (filters.corner_consistency, "corner_status")):
+        if status == "not-indexed":
+            terms.append("NOT EXISTS (SELECT 1 FROM consistency_runs WHERE bundle_id=b.bundle_id)")
+        elif status is not None:
+            terms.append(f"EXISTS (SELECT 1 FROM consistency_runs WHERE bundle_id=b.bundle_id AND {column}=?)")
+            values.append(status)
     if filters.created_from is not None:
         start = (filters.created_from - _UNIX_EPOCH).days * _DAY_NS
         if start > _MAX_SQLITE_INTEGER:
@@ -212,6 +224,12 @@ class LibraryService:
             return None
         row = rows[0]
         return SessionDetail(_summary(row[:-3]), row[-3], row[-2], _decoded(row[-1]))
+
+    def get_consistency(self, bundle_id: str) -> dict | None:
+        bundle_id = digest_value(bundle_id, "bundle ID")
+        with closing(open_database(self.database)) as connection:
+            connection.execute("BEGIN")
+            return read_consistency(connection, bundle_id)
 
     def list_laps(self, bundle_id: str) -> tuple[LapEntry, ...]:
         rows = self._rows(

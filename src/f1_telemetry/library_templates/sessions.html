@@ -14,6 +14,14 @@
   <label>Team ID <input name="team_id" type="number" min="0" max="255" value="{{ query.get('team_id', '') }}"></label>
   <label>Setup fingerprint <input name="setup_fingerprint" maxlength="64" value="{{ query.get('setup_fingerprint', '') }}"></label>
   <label>Algorithm <input name="algorithm_version" value="{{ query.get('algorithm_version', '') }}"></label>
+  {% for field, label in (('consistency', 'Lap consistency'), ('corner_consistency', 'Corner consistency')) %}
+  <div class="field"><label for="{{ field }}">{{ label }}</label><select id="{{ field }}" name="{{ field }}">
+    <option value="">Any status</option>
+    {% for status in ('available', 'unavailable', 'not-indexed') %}
+    <option value="{{ status }}"{% if query.get(field) == status %} selected{% endif %}>{{ status|replace('-', ' ')|capitalize }}</option>
+    {% endfor %}
+  </select></div>
+  {% endfor %}
   <label>Page size <input name="page_size" type="number" min="1" max="100" value="{{ result.page_size }}"></label>
   <div class="actions"><button type="submit">Filter sessions</button><a href="{{ url_for('sessions') }}">Clear</a></div>
 </form>

@@ -23,10 +23,12 @@ from f1_telemetry.bundle import (
     object_value,
     verify_bundle,
 )
+from f1_telemetry.consistency import CONSISTENCY_FILENAME
+from f1_telemetry.library_consistency import CONSISTENCY_SCHEMA, index_consistency, read_consistency
 
 DEFAULT_DATABASE = Path("data/library/telemetry.sqlite3")
 DEFAULT_BUNDLE_ROOT = Path("data/analysis")
-DATABASE_VERSION = 1
+DATABASE_VERSION = 2
 _APPLICATION_ID = 0x4631544C  # F1TL
 
 _SCHEMA = """
@@ -134,14 +136,22 @@ def _writer_lock(database: Path):
         yield
 
 
-def _check_version(connection: sqlite3.Connection) -> None:
+def _check_version(connection: sqlite3.Connection, *, allow_previous: bool = False) -> int:
     application_id = connection.execute("PRAGMA application_id").fetchone()[0]
     version = connection.execute("PRAGMA user_version").fetchone()[0]
-    if application_id != _APPLICATION_ID or version != DATABASE_VERSION:
+    supported = range(1, DATABASE_VERSION + 1) if allow_previous else (DATABASE_VERSION,)
+    if application_id != _APPLICATION_ID or version not in supported:
         raise LibraryError(f"not a supported telemetry library (schema {version})")
+    return version
 
 
 def open_database(path: str | Path, *, read_only: bool = True) -> sqlite3.Connection:
+    return _open_database(path, read_only=read_only)
+
+
+def _open_database(
+    path: str | Path, *, read_only: bool, allow_previous: bool = False,
+) -> sqlite3.Connection:
     database = _database_path(path)
     mode = "ro" if read_only else "rw"
     connection = sqlite3.connect(f"{database.as_uri()}?mode={mode}", uri=True)
@@ -150,7 +160,7 @@ def open_database(path: str | Path, *, read_only: bool = True) -> sqlite3.Connec
         connection.execute("PRAGMA trusted_schema=OFF")
         if read_only:
             connection.execute("PRAGMA query_only=ON")
-        _check_version(connection)
+        _check_version(connection, allow_previous=allow_previous)
     except BaseException:
         connection.close()
         raise
@@ -159,17 +169,38 @@ def open_database(path: str | Path, *, read_only: bool = True) -> sqlite3.Connec
 
 def _initialize(database: Path) -> None:
     if database.exists():
-        with closing(open_database(database)):
-            return
+        with closing(_open_database(database, read_only=False, allow_previous=True)) as connection, connection:
+            if _check_version(connection, allow_previous=True) != DATABASE_VERSION:
+                _begin_library_write(connection)
+        return
     with tempfile.TemporaryDirectory(prefix=".library-init-", dir=database.parent) as scratch:
         staged = Path(scratch) / "library.sqlite3"
         with closing(sqlite3.connect(staged)) as connection:
             connection.executescript(
-                f"BEGIN; {_SCHEMA} PRAGMA application_id={_APPLICATION_ID}; "
+                f"BEGIN; {_SCHEMA} {CONSISTENCY_SCHEMA} PRAGMA application_id={_APPLICATION_ID}; "
                 f"PRAGMA user_version={DATABASE_VERSION}; COMMIT;"
             )
         # Link the finished database without overwriting a concurrently created destination.
         os.link(staged, database)
+
+
+def _begin_library_write(connection: sqlite3.Connection) -> None:
+    """Start the write transaction, keeping any migration inside it."""
+    version = _check_version(connection, allow_previous=True)
+    if version == 1:
+        connection.executescript("BEGIN IMMEDIATE; " + CONSISTENCY_SCHEMA)
+        rows = connection.execute(
+            "SELECT b.bundle_id, b.root, b.manifested FROM bundles AS b JOIN artifacts USING (bundle_id) "
+            "WHERE artifacts.path=? ORDER BY b.bundle_id", (CONSISTENCY_FILENAME,),
+        ).fetchall()
+        for bundle_id, root, manifested in rows:
+            bundle = _verify_indexed_bundle(connection, bundle_id, root, manifested)
+            if bundle.consistency is None:
+                raise LibraryError(f"missing verified consistency result: {bundle_id}")
+            index_consistency(connection, bundle_id, bundle.consistency, bundle.document)
+        connection.execute("PRAGMA user_version=2")
+    else:
+        connection.execute("BEGIN IMMEDIATE")
 
 
 def init_library(path: str | Path = DEFAULT_DATABASE) -> None:
@@ -299,6 +330,8 @@ def _index_bundle(connection: sqlite3.Connection, bundle: VerifiedBundle) -> boo
         ))
     for value in array_value(track.get("turns", []), "turns"):
         turn = object_value(value, "turn")
+        if bundle.consistency is not None:
+            _text(turn.get("display_name"), "turn display name")
         connection.execute("INSERT INTO corners VALUES (?, ?, ?, ?)", (
             bundle_id, _text(turn.get("turn_id"), "turn ID"),
             integer_value(turn.get("number"), "turn number", 1), _json(turn),
@@ -335,6 +368,8 @@ def _index_bundle(connection: sqlite3.Connection, bundle: VerifiedBundle) -> boo
                     connection.execute("INSERT INTO events VALUES (?, ?, ?, ?, ?)", (
                         bundle_id, number, role, integer_value(event.get(key), "event index"), _json(event),
                     ))
+    if bundle.consistency is not None:
+        index_consistency(connection, bundle_id, bundle.consistency, doc)
     return True
 
 
@@ -346,8 +381,8 @@ def import_bundles(path: str | Path, roots: Sequence[str | Path]) -> tuple[int, 
 
 
 def _import_bundles(database: Path, roots: Sequence[str | Path]) -> tuple[int, int]:
-    with closing(open_database(database, read_only=False)) as connection, connection:
-        connection.execute("BEGIN IMMEDIATE")
+    with closing(_open_database(database, read_only=False, allow_previous=True)) as connection, connection:
+        _begin_library_write(connection)
         imported = sum(_index_bundle(connection, verify_bundle(root)) for root in roots)
     return imported, len(roots) - imported
 
@@ -371,19 +406,27 @@ def rebuild_library(path: str | Path, bundle_root: str | Path = DEFAULT_BUNDLE_R
         prefix=".library-rebuild-", dir=database.parent
     ) as scratch:
         if database.exists():
-            with closing(open_database(database)):
+            with closing(_open_database(database, read_only=True, allow_previous=True)):
                 pass
         staged = Path(scratch) / "library.sqlite3"
         _initialize(staged)
         counts = _import_bundles(staged, roots)
         verify_library(staged)
         if database.exists():
-            with closing(open_database(database, read_only=False)) as old, old:
+            with closing(_open_database(database, read_only=False, allow_previous=True)) as old, old:
                 old.execute("BEGIN IMMEDIATE")
                 os.replace(staged, database)
         else:
             os.link(staged, database)
     return counts
+
+
+def _verify_indexed_bundle(connection, bundle_id: str, root: str, manifested: int) -> VerifiedBundle:
+    bundle = verify_bundle(root)
+    if (bundle.root != Path(root) or bundle.bundle_id != bundle_id or bundle.manifested != bool(manifested)
+        or bundle.artifacts != _registered_artifacts(connection, bundle_id)):
+        raise LibraryError(f"indexed bundle changed: {bundle_id}")
+    return bundle
 
 
 def verify_library(path: str | Path = DEFAULT_DATABASE) -> int:
@@ -396,10 +439,9 @@ def verify_library(path: str | Path = DEFAULT_DATABASE) -> int:
         rows = connection.execute("SELECT bundle_id, root, manifested FROM bundles ORDER BY bundle_id")
         count = 0
         for bundle_id, root, manifested in rows:
-            bundle = verify_bundle(root)
-            if (bundle.root != Path(root) or bundle.bundle_id != bundle_id or bundle.manifested != bool(manifested)
-                or bundle.artifacts != _registered_artifacts(connection, bundle_id)):
-                raise LibraryError(f"indexed bundle changed: {bundle_id}")
+            bundle = _verify_indexed_bundle(connection, bundle_id, root, manifested)
+            if read_consistency(connection, bundle_id) != bundle.consistency:
+                raise LibraryError(f"indexed consistency changed: {bundle_id}")
             count += 1
         return count
 
