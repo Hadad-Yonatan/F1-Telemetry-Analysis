@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sessions</h1>
+<form class="filters" method="get" action="{{ url_for('sessions') }}">
+  <label>Track ID <input name="track_id" type="number" value="{{ query.get('track_id', '') }}"></label>
+  <label>From (UTC) <input name="created_from" type="date" value="{{ query.get('created_from', '') }}"></label>
+  <label>Through (UTC) <input name="created_through" type="date" value="{{ query.get('created_through', '') }}"></label>
+  <div class="field"><label for="mode">Mode</label><select id="mode" name="mode">
+    <option value="">All modes</option>
+    {% for mode in ('time-trial', 'practice', 'qualifying', 'race') %}
+    <option value="{{ mode }}"{% if query.get('mode') == mode %} selected{% endif %}>{{ mode|replace('-', ' ')|title }}</option>
+    {% endfor %}
+  </select></div>
+  <label>Team ID <input name="team_id" type="number" min="0" max="255" value="{{ query.get('team_id', '') }}"></label>
+  <label>Setup fingerprint <input name="setup_fingerprint" maxlength="64" value="{{ query.get('setup_fingerprint', '') }}"></label>
+  <label>Algorithm <input name="algorithm_version" value="{{ query.get('algorithm_version', '') }}"></label>
+  <label>Page size <input name="page_size" type="number" min="1" max="100" value="{{ result.page_size }}"></label>
+  <div class="actions"><button type="submit">Filter sessions</button><a href="{{ url_for('sessions') }}">Clear</a></div>
+</form>
+<p>{{ result.total }} indexed {{ 'session' if result.total == 1 else 'sessions' }}.</p>
+{% if result.items %}
+<div class="scroll"><table>
+  <thead><tr><th scope="col">Track</th><th scope="col">Capture date</th><th scope="col">Mode</th><th scope="col">Team</th><th scope="col">Algorithm</th></tr></thead>
+  <tbody>{% for item in result.items %}
+    <tr><th scope="row"><a href="{{ url_for('session_page', bundle_id=item.bundle_id) }}">{{ item.track_name or ('Track ' ~ item.track_id) }}</a></th>
+      <td>{{ item.capture_created_unix_ns|capture_date }}</td>
+      <td>{{ item.mode or 'Unavailable' }}</td><td>{{ item.team_id if item.team_id is not none else '—' }}</td>
+      <td>{{ item.algorithm_version }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p>No sessions match these filters.</p>{% endif %}
+<nav class="actions" aria-label="Pagination">
+  {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
+  <span>Page {{ result.page }}</span>
+  {% if following %}<a href="{{ following }}">Next</a>{% endif %}
+</nav>
+{% endblock %}
