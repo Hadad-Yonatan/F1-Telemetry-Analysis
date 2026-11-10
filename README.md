@@ -101,6 +101,8 @@ driving-event measurements, and explicit unmatched events.
 Analysis also records [session and lap context](docs/session-context-v1.md),
 including observed weather, assists, setup fingerprints, and changes during
 eligible laps. Missing context is explicit and does not change lap eligibility.
+The `bundle.json` manifest records each artifact's size and SHA-256. The
+bundle ID is the SHA-256 of the exact `analysis.json` bytes.
 Existing output directories are never overwritten. Use `--reference-lap` to
 replace the default fastest eligible reference and repeat `--comparison-lap`
 to select specific eligible laps.
@@ -128,6 +130,21 @@ PYTHONPATH=src python -m f1_telemetry.plot data/captures/example.f1cap \
 
 The plot contains aligned speed, delta, throttle, brake, steering, and gear
 panels. Detected time-loss regions are shaded on the delta panel.
+
+## Index local analysis history
+
+```bash
+f1-telemetry-library init
+f1-telemetry-library import data/analysis/example
+f1-telemetry-library verify
+```
+
+The SQLite index lives at `data/library/telemetry.sqlite3` by default. Run
+`f1-telemetry-library rebuild data/analysis` to replace it with a fresh index
+of all bundles in that tree. The index references the original report paths
+and never copies the capture or artifacts. See the
+[library and bundle contract](docs/session-library-v1.md) for legacy bundles,
+verification, and recovery.
 
 ## Validate across circuits
 

@@ -10,6 +10,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
+from f1_telemetry.bundle import write_bundle_manifest
 from f1_telemetry.corner_catalog import CatalogSelection, TrackDefinition
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
 from f1_telemetry.html_report import write_html_report
@@ -442,7 +443,7 @@ def write_analysis_bundle(
 ) -> None:
     """Atomically create a complete analysis bundle without overwriting."""
     output = Path(output_dir)
-    if output.exists():
+    if output.exists() or output.is_symlink():
         raise FileExistsError(f"output directory already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(
@@ -464,7 +465,8 @@ def write_analysis_bundle(
                 comparison,
                 temporary / f"{stem}.svg",
             )
-        if output.exists():
+        write_bundle_manifest(temporary)
+        if output.exists() or output.is_symlink():
             raise FileExistsError(f"output directory already exists: {output}")
         temporary.rename(output)
     except BaseException:
