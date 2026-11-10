@@ -291,6 +291,24 @@ def create_app(database: str | Path) -> Flask:
             abort(404, description="No indexed motion result for this bundle.")
         return api(motion)
 
+    @app.get("/api/v1/experiments")
+    @app.get("/experiments")
+    def experiments():
+        rows = service.list_experiments()
+        if request.path.startswith("/api/"):
+            return api(rows)
+        return render_template("experiments.html", rows=rows)
+
+    @app.get("/api/v1/experiments/<experiment_id>")
+    @app.get("/experiments/<experiment_id>")
+    def experiment_detail(experiment_id):
+        result = service.get_experiment(_id(experiment_id))
+        if result is None:
+            abort(404, description="Experiment not found.")
+        if request.path.startswith("/api/"):
+            return api(result)
+        return render_template("experiment.html", experiment=result)
+
     @app.get("/api/v1/sessions/<bundle_id>/<collection>")
     def api_collection(bundle_id, collection):
         session = session_or_404(bundle_id)

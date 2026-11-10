@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Setup experiments · Telemetry history{% endblock %}
+{% block content %}
+<h1>Setup experiments</h1>
+{% if rows %}
+<ul>{% for row in rows %}
+  <li><a href="{{ url_for('experiment_detail', experiment_id=row.experiment_id) }}">{{ row.control_label }} vs {{ row.candidate_label }}</a>
+    · Track {{ row.track_id }} · Method {{ row.method_version }}</li>
+{% endfor %}</ul>
+{% else %}<p>No indexed setup experiments.</p>{% endif %}
+{% endblock %}

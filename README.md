@@ -160,6 +160,9 @@ f1-telemetry-library serve
 Open [http://127.0.0.1:8765](http://127.0.0.1:8765). The service is read-only
 and only binds to loopback addresses.
 
+Use [controlled setup experiments](docs/setup-experiments-v1.md) to compare
+declared setup changes across eligible laps from verified Time Trial bundles.
+
 ## Validate across circuits
 
 The tracked cross-circuit manifest locks capture identity, session invariants,

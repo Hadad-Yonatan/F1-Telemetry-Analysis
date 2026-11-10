@@ -15,7 +15,7 @@ columns, ordered finite samples, and the expected finish distance and delta.
 Their current artifact hashes are saved at first import; there is no
 pre-import hash evidence for legacy artifacts.
 
-`f1-telemetry-library init` creates the current SQLite schema (3) and is
+`f1-telemetry-library init` creates the current SQLite schema (4) and is
 safe to repeat. It also migrates older schemas in a transaction. Migration
 retains existing rows and backfills consistency or motion from verified
 bundles that already registered the corresponding artifact. A failed
@@ -84,6 +84,8 @@ under a session returns the indexed result, including raw lap and corner
 samples and trend inputs; it returns 404 for a bundle with no such result.
 The `motion` detail returns indexed coverage and paired motion summaries;
 raw traces remain in the bundle. It returns 404 when motion was not indexed.
+The `/api/v1/experiments` collection and ID detail expose read-only
+[setup experiment](setup-experiments-v1.md) summaries.
 JSON responses include
 `schema_version: 1`; UID and capture nanoseconds remain decimal strings.
 

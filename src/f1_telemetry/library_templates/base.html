@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='library.css') }}">
 </head>
 <body>
-  <header class="shell"><a href="{{ url_for('sessions') }}">Telemetry history</a><span>Local library</span></header>
+  <header class="shell"><a href="{{ url_for('sessions') }}">Telemetry history</a>
+    <a href="{{ url_for('experiments') }}">Setup experiments</a></header>
   <main class="shell">{% block content %}{% endblock %}</main>
   <footer class="shell">Index: <code>{{ database_path }}</code></footer>
 </body>

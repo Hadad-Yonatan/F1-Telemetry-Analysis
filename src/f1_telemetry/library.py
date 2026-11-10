@@ -25,12 +25,16 @@ from f1_telemetry.bundle import (
 )
 from f1_telemetry.consistency import CONSISTENCY_FILENAME
 from f1_telemetry.library_consistency import CONSISTENCY_SCHEMA, index_consistency, read_consistency
+from f1_telemetry.library_experiments import (
+    EXPERIMENT_LIBRARY_SCHEMA, experiment_references, index_experiment, read_experiment_artifact,
+    verify_indexed_experiments,
+)
 from f1_telemetry.library_motion import MOTION_LIBRARY_SCHEMA, index_motion, motion_projection, read_motion
 from f1_telemetry.motion_analysis import MOTION_FILENAME
 
 DEFAULT_DATABASE = Path("data/library/telemetry.sqlite3")
 DEFAULT_BUNDLE_ROOT = Path("data/analysis")
-DATABASE_VERSION = 3
+DATABASE_VERSION = 4
 _APPLICATION_ID = 0x4631544C  # F1TL
 
 _SCHEMA = """
@@ -179,7 +183,8 @@ def _initialize(database: Path) -> None:
         staged = Path(scratch) / "library.sqlite3"
         with closing(sqlite3.connect(staged)) as connection:
             connection.executescript(
-                f"BEGIN; {_SCHEMA} {CONSISTENCY_SCHEMA} {MOTION_LIBRARY_SCHEMA} PRAGMA application_id={_APPLICATION_ID}; "
+                f"BEGIN; {_SCHEMA} {CONSISTENCY_SCHEMA} {MOTION_LIBRARY_SCHEMA} {EXPERIMENT_LIBRARY_SCHEMA} "
+                f"PRAGMA application_id={_APPLICATION_ID}; "
                 f"PRAGMA user_version={DATABASE_VERSION}; COMMIT;"
             )
         # Link the finished database without overwriting a concurrently created destination.
@@ -192,8 +197,11 @@ def _begin_library_write(connection: sqlite3.Connection) -> None:
     if version == DATABASE_VERSION:
         connection.execute("BEGIN IMMEDIATE")
         return
-    schema = CONSISTENCY_SCHEMA if version == 1 else ""
-    connection.executescript("BEGIN IMMEDIATE; " + schema + MOTION_LIBRARY_SCHEMA)
+    schema = "".join(
+        sql for target, sql in ((2, CONSISTENCY_SCHEMA), (3, MOTION_LIBRARY_SCHEMA), (4, EXPERIMENT_LIBRARY_SCHEMA))
+        if version < target
+    )
+    connection.executescript("BEGIN IMMEDIATE; " + schema)
     upgrades = [
         (2, CONSISTENCY_FILENAME, "consistency", index_consistency),
         (3, MOTION_FILENAME, "motion", index_motion),
@@ -418,12 +426,20 @@ def rebuild_library(path: str | Path, bundle_root: str | Path = DEFAULT_BUNDLE_R
     with _writer_lock(database), tempfile.TemporaryDirectory(
         prefix=".library-rebuild-", dir=database.parent
     ) as scratch:
+        experiments = ()
         if database.exists():
-            with closing(_open_database(database, read_only=True, allow_previous=True)):
-                pass
+            with closing(_open_database(database, read_only=True, allow_previous=True)) as old:
+                if _check_version(old, allow_previous=True) >= 4:
+                    experiments = experiment_references(old)
         staged = Path(scratch) / "library.sqlite3"
         _initialize(staged)
         counts = _import_bundles(staged, roots)
+        if experiments:
+            with closing(open_database(staged, read_only=False)) as connection, connection:
+                connection.execute("BEGIN IMMEDIATE")
+                for experiment_id, experiment_root, report_sha in experiments:
+                    artifact = read_experiment_artifact(experiment_root, experiment_id, report_sha)
+                    index_experiment(connection, Path(experiment_root), experiment_id, report_sha, artifact)
         verify_library(staged)
         if database.exists():
             with closing(_open_database(database, read_only=False, allow_previous=True)) as old, old:
@@ -459,6 +475,7 @@ def verify_library(path: str | Path = DEFAULT_DATABASE) -> int:
             if read_motion(connection, bundle_id) != projection:
                 raise LibraryError(f"indexed motion changed: {bundle_id}")
             count += 1
+        verify_indexed_experiments(connection)
         return count
 
 
