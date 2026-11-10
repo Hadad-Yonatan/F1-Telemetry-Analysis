@@ -275,6 +275,12 @@ class AnalysisSelectionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     self.analyze(**options)
 
+    def test_consistency_is_independent_of_reference_and_selected_comparisons(self) -> None:
+        full = self.analyze(corner_catalog=matching_catalog())
+        subset = self.analyze(reference_lap=5, comparison_laps=(3,), corner_catalog=matching_catalog())
+        self.assertEqual(full.consistency, subset.consistency)
+        self.assertEqual(len(subset.consistency.laps), 3)
+
     def test_writes_reproducible_complete_bundle(self) -> None:
         result = self.analyze()
         first = Path(self.temporary.name) / "first"
@@ -286,6 +292,7 @@ class AnalysisSelectionTests(unittest.TestCase):
         expected_names = {
             "bundle.json",
             "analysis.json",
+            "consistency.json",
             "report.html",
             "report.md",
             "lap-03-vs-01.csv",
@@ -300,6 +307,10 @@ class AnalysisSelectionTests(unittest.TestCase):
 
         document = json.loads((first / "analysis.json").read_text(encoding="utf-8"))
         self.assertEqual(document, analysis_document(result))
+        consistency = json.loads((first / "consistency.json").read_bytes())
+        self.assertEqual(document["consistency"]["path"], "consistency.json")
+        self.assertEqual(consistency["status"], "available")
+        self.assertEqual([lap["lap_number"] for lap in consistency["laps"]], [1, 3, 5])
         self.assertEqual(document["schema_version"], 1)
         self.assertEqual(document["algorithm"]["version"], "1.1.0")
         self.assertEqual(document["corner_catalog"]["status"], "disabled")
@@ -353,6 +364,7 @@ class AnalysisSelectionTests(unittest.TestCase):
         )
         self.assertTrue((first / "report.md").read_bytes().endswith(b"\n"))
         rendered_html = (first / "report.html").read_text(encoding="utf-8")
+        self.assertIn("Lap consistency", rendered_html)
         payload = html_payload(rendered_html)
         self.assertEqual(payload["report_version"], 1)
         self.assertEqual(payload["analysis"], document)

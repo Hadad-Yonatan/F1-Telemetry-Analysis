@@ -13,6 +13,11 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from f1_telemetry.consistency import (
+    CONSISTENCY_FILENAME,
+    CONSISTENCY_METHOD_VERSION,
+    CONSISTENCY_SCHEMA_VERSION,
+)
 
 MANIFEST_FILENAME = "bundle.json"
 MANIFEST_SCHEMA_VERSION = 1
@@ -195,6 +200,11 @@ def _required_artifacts(document: dict[str, object], manifested: bool) -> dict[s
     required: dict[str, dict] = {"analysis.json": {}}
     if manifested:
         required.update({"report.html": {}, "report.md": {}})
+    if "consistency" in document:
+        descriptor = object_value(document["consistency"], "consistency descriptor")
+        if descriptor.get("path") != CONSISTENCY_FILENAME:
+            raise BundleError("invalid consistency artifact path")
+        required[CONSISTENCY_FILENAME] = descriptor
     comparisons = array_value(document.get("comparisons"), "comparisons")
     if not comparisons:
         raise BundleError("analysis must include at least one comparison")
@@ -279,4 +289,22 @@ def verify_bundle(path: str | Path) -> VerifiedBundle:
         raise BundleError("analysis.json changed during verification")
     if manifest is not None and artifacts != declared:
         raise BundleError("bundle artifact size or SHA-256 does not match the manifest")
+    if CONSISTENCY_FILENAME in required:
+        descriptor = required[CONSISTENCY_FILENAME]
+        expected = digest_value(descriptor.get("sha256"), "consistency SHA-256")
+        actual = next(entry.sha256 for entry in artifacts if entry.path == CONSISTENCY_FILENAME)
+        raw_consistency = _read_artifact(files[CONSISTENCY_FILENAME])
+        if actual != expected or hashlib.sha256(raw_consistency).hexdigest() != actual:
+            raise BundleError("consistency artifact SHA-256 does not match analysis.json")
+        consistency = _load_object(raw_consistency, CONSISTENCY_FILENAME)
+        for item in (descriptor, consistency):
+            integer_value(
+                item.get("schema_version"), "consistency schema",
+                CONSISTENCY_SCHEMA_VERSION, CONSISTENCY_SCHEMA_VERSION,
+            )
+            if item.get("method_version") != CONSISTENCY_METHOD_VERSION:
+                raise BundleError("unsupported consistency method")
+        status = consistency.get("status")
+        if status not in ("available", "unavailable") or descriptor.get("status") != status:
+            raise BundleError("inconsistent consistency availability")
     return VerifiedBundle(root, bundle_id, document, artifacts, manifest is not None)

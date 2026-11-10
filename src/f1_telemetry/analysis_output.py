@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Callable
 
 from f1_telemetry.bundle import write_bundle_manifest
+from f1_telemetry.consistency import CONSISTENCY_FILENAME
 from f1_telemetry.corner_catalog import CatalogSelection, TrackDefinition
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
 from f1_telemetry.html_report import write_html_report
@@ -260,11 +261,16 @@ def _comparison_document(comparison: LapComparison) -> dict[str, object]:
 
 def analysis_document(result: AnalysisResult) -> dict[str, object]:
     """Return the canonical, deterministically rounded analysis document."""
+    raw = result.consistency.json_bytes() if result.consistency is not None else None
+    return _analysis_document(result, raw)
+
+
+def _analysis_document(result: AnalysisResult, consistency: bytes | None) -> dict[str, object]:
     config = result.config
     discarded_by_lap = {
         lap.lap_number: lap.discarded_attempt_frames for lap in result.session.laps
     }
-    return {
+    document: dict[str, object] = {
         "schema_version": config.schema_version,
         "session_context": (
             context_document(result.session_context) if result.session_context is not None else None
@@ -392,6 +398,9 @@ def analysis_document(result: AnalysisResult) -> dict[str, object]:
             for comparison in result.comparisons
         ],
     }
+    if consistency is not None and result.consistency is not None:
+        document["consistency"] = result.consistency.descriptor(consistency)
+    return document
 
 
 def _write_json(document: dict[str, object], output: Path) -> None:
@@ -453,8 +462,12 @@ def write_analysis_bundle(
         )
     )
     try:
-        document = analysis_document(result)
+        consistency = result.consistency.json_bytes() if result.consistency is not None else None
+        document = _analysis_document(result, consistency)
         _write_json(document, temporary / "analysis.json")
+        if consistency is not None:
+            with (temporary / CONSISTENCY_FILENAME).open("xb") as file:
+                file.write(consistency)
         report_writer(result, temporary / "report.md")
         html_writer(result, document, temporary / "report.html")
         for comparison in result.comparisons:

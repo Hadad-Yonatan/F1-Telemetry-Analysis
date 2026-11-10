@@ -11,6 +11,7 @@ from statistics import fmean
 from typing import Sequence
 
 from f1_telemetry.capture_format import iter_capture, read_capture_header
+from f1_telemetry.consistency import ConsistencyResult, analyze_consistency
 from f1_telemetry.corner_catalog import (
     DEFAULT_CORNER_CATALOG,
     CatalogSelection,
@@ -267,6 +268,7 @@ class AnalysisResult:
     reference_lap: int
     comparisons: tuple[LapComparison, ...]
     catalog_selection: CatalogSelection
+    consistency: ConsistencyResult | None = None
 
     @property
     def session_context(self) -> SessionContext | None:
@@ -821,6 +823,7 @@ def analyze_capture(
         step=config.distance_step_m,
     )
     comparisons = []
+    known_events: dict[int, tuple[DrivingEvent, ...]] = {}
     for comparison_trace in selected_comparisons:
         comparison = resample_lap(
             comparison_trace,
@@ -855,6 +858,8 @@ def analyze_capture(
                 "the official lap-time difference"
             )
         comparisons.append(comparison_result)
+        known_events[reference_trace.lap_number] = comparison_result.reference_events
+        known_events[comparison_trace.lap_number] = comparison_result.comparison_events
 
     return AnalysisResult(
         config=config,
@@ -863,6 +868,7 @@ def analyze_capture(
         reference_lap=reference_trace.lap_number,
         comparisons=tuple(comparisons),
         catalog_selection=catalog_selection,
+        consistency=analyze_consistency(session, catalog_selection.track, config, known_events=known_events),
     )
 
 
