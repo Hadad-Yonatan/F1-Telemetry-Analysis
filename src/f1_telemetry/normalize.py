@@ -90,6 +90,7 @@ class FrameNormalizer:
 
     def __init__(self) -> None:
         self.stats = NormalizationStats()
+        self.last_join_exact = False
         self._laps: dict[FrameKey, PendingLap] = {}
         self._telemetry: dict[FrameKey, PendingTelemetry] = {}
 
@@ -163,6 +164,7 @@ class FrameNormalizer:
         telemetry: DecodedCarTelemetry,
         telemetry_capture_ns: int,
     ) -> NormalizedSample:
+        self.last_join_exact = lap.identity.session_time == telemetry.identity.session_time
         if abs(lap.identity.session_time - telemetry.identity.session_time) > 1e-6:
             self.stats.session_time_mismatches += 1
 

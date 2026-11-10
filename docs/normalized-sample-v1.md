@@ -57,3 +57,7 @@ The normalizer reports unmatched packet pairs and decode failures. It never
 changes the raw capture, and a decode failure cannot remove the preserved UDP
 bytes from F1CAP.
 
+# Optional motion
+
+The [composite Motion normalizer](composite-motion-v1.md) attaches optional
+Motion and Motion Ex groups without changing any version-1 CSV field.
