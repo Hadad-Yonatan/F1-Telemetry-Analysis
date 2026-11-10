@@ -14,6 +14,7 @@ from f1_telemetry.bundle import write_bundle_manifest
 from f1_telemetry.consistency import CONSISTENCY_FILENAME
 from f1_telemetry.corner_catalog import CatalogSelection, TrackDefinition
 from f1_telemetry.driving_events import DrivingEvent, MatchedDrivingEvent
+from f1_telemetry.experimental_policy import comparison_context_document, lap_policy_context_document
 from f1_telemetry.html_report import write_html_report
 from f1_telemetry.lap_analysis import (
     AnalysisResult,
@@ -217,7 +218,7 @@ def _catalog_document(selection: CatalogSelection) -> dict[str, object]:
 
 
 def _comparison_document(comparison: LapComparison) -> dict[str, object]:
-    return {
+    document: dict[str, object] = {
         "reference_lap": comparison.reference_lap,
         "comparison_lap": comparison.comparison_lap,
         "reference_discarded_attempt_frames": (
@@ -259,6 +260,9 @@ def _comparison_document(comparison: LapComparison) -> dict[str, object]:
             _region_document(region) for region in comparison.regions
         ],
     }
+    if comparison.policy_context is not None:
+        document["policy_context"] = comparison_context_document(comparison.policy_context)
+    return document
 
 
 def analysis_document(result: AnalysisResult) -> dict[str, object]:
@@ -412,6 +416,8 @@ def _analysis_document(
         document["consistency"] = result.consistency.descriptor(consistency)
     if result.session.policy is not None:
         document["session_policy"] = asdict(result.session.policy)
+    if result.session.lap_policy_context:
+        document["lap_policy_context"] = [lap_policy_context_document(row) for row in result.session.lap_policy_context]
     if motion is not None and result.motion is not None:
         document["motion"] = result.motion.descriptor(*motion)
     return document

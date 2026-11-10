@@ -298,7 +298,7 @@ def _line_metrics(
 
 def _lap_profile(
     trace: LapTrace, trajectory: _Trajectory, reference_trajectory: _Trajectory,
-    transform: TrackTransform | None, *, is_reference: bool = False,
+    transform: TrackTransform | None, *, is_reference: bool = False, comparable: bool = True,
 ) -> MotionLap:
     base, directions, extended = trajectory.base, trajectory.directions, trajectory.extended
     positions = tuple(transform.to_map((row[0], row[1])) if transform is not None and row is not None else None
@@ -310,7 +310,7 @@ def _lap_profile(
         for first, second, tangent, reference_forward, comparison_forward
         in zip(reference_trajectory.base, base, reference_trajectory.tangents,
                reference_trajectory.directions, directions, strict=True)
-    )
+    ) if comparable else ((None, None),) * len(base)
     return MotionLap(
         trace.lap_number, positions, trajectory.break_before,
         (
@@ -326,6 +326,7 @@ def _lap_profile(
 
 def analyze_motion(
     session: PreparedSession, inputs: MotionInputs, reference_lap: int, distances: tuple[float, ...],
+    *, comparison_laps: set[int] | None = None,
 ) -> MotionResult:
     traces = tuple(sorted(session.laps, key=lambda trace: trace.lap_number))
     reference = next(trace for trace in traces if trace.lap_number == reference_lap)
@@ -340,8 +341,11 @@ def analyze_motion(
             laps.append(reference_profile)
             continue
         trajectory = _trajectory(trace, inputs, distances, session.track_length)
-        profile = _lap_profile(trace, trajectory, reference_trajectory, transform)
+        comparable = comparison_laps is None or trace.lap_number in comparison_laps
+        profile = _lap_profile(trace, trajectory, reference_trajectory, transform, comparable=comparable)
         laps.append(profile)
+        if not comparable:
+            continue
         comparisons.append(MotionComparison(
             trace.lap_number,
             tuple(_shared(first.metric, first.values, second.values)
